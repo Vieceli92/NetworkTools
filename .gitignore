@@ -3,3 +3,6 @@
 MobaXterm.ini
 *.ini.bak_*
 *.log
+
+# pacote gerado para download (nao versionar)
+*.zip
