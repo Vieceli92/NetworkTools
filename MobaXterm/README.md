@@ -5,6 +5,11 @@ Scripts PowerShell (Windows PowerShell 5.1 ou PowerShell 7) para:
 1. **Organizar os logs** do MobaXterm em pastas `Ano\Mês\Dia`, automaticamente ao abrir/fechar o Moba.
 2. **Sincronizar as sessões** entre o PC do trabalho e o de casa pelo **OneDrive**.
 3. **Colorir o terminal** para Cisco, Huawei e Juniper.
+4. **Anti-idle**: manter as sessões abertas mesmo com `exec-timeout`/`idle-timeout` no equipamento.
+
+> **Baixe a pasta `MobaXterm` inteira** (GitHub > *Code* > *Download ZIP*, na branch certa). Os scripts dependem
+> de `MobaTools.Common.ps1` e `config.psd1`, e copiar e colar o texto costuma corromper o arquivo
+> (o resultado é o erro `'}' de fechamento ausente`).
 
 | Arquivo | Para que serve |
 |---|---|
@@ -13,7 +18,9 @@ Scripts PowerShell (Windows PowerShell 5.1 ou PowerShell 7) para:
 | `Iniciar-MobaXterm.ps1` | Organiza os logs → abre o Moba → organiza de novo quando o Moba fecha |
 | `Instalar-MobaTools.ps1` | Cria o atalho **"MobaXterm (logs)"** e (opcional) uma tarefa agendada |
 | `Configurar-SyncOneDrive.ps1` | Coloca o `MobaXterm.ini` (sessões) no OneDrive |
+| `Migrar-ParaPortable.ps1` | Migra o Moba instalado para o **portable no OneDrive** (ini, logs, plugins, atalho) |
 | `Syntax-Redes.ini` + `Instalar-SyntaxRedes.ps1` | Perfil de cores "Custom: Redes (Cisco/Huawei/Juniper)" |
+| `AntiIdle\MobaAntiIdle.ahk` | **Anti-idle** estilo SecureCRT (a sessão não cai por `idle-timeout`) |
 
 > Dica: coloque esta pasta de scripts dentro do OneDrive — assim ela já fica igual nos dois PCs.
 
@@ -83,6 +90,23 @@ Na versão portable o `MobaXterm.ini` fica **na mesma pasta do .exe**. Colocando
 
 > `HomeDir`/`SlashDir` apontando para `_AppDataDir_` ficam **fora** do OneDrive (bom: são milhares de arquivos pequenos que não precisam sincronizar).
 
+#### Migração automática (instalado → portable)
+Com o Moba **fechado**, dentro da pasta dos scripts:
+```powershell
+.\Migrar-ParaPortable.ps1 -WhatIf            # só mostra o que faria
+.\Migrar-ParaPortable.ps1 -TarefaAgendada    # migra de verdade
+# padrão: portable em %OneDrive%\Documents\MobaXterm  (outra pasta: -PastaPortable 'D:\...')
+```
+O script:
+1. Confere se o Moba está fechado, acha o `.exe` do portable e compara a versão com a do instalado.
+2. Faz **backup de todos os `MobaXterm.ini`** que encontrar (`_backup_migracao_AAAAMMDD_HHMMSS`).
+3. Se já existir um ini na pasta do portable (ex.: sua pasta Documentos já está no OneDrive), **mantém** esse ini. Senão, copia o mais recente do instalado. Para escolher outro, use `-IniOrigem <caminho>`.
+4. Ajusta os logs: `LogFolder=_MobaFolder_\Log` (a pasta Log fica ao lado do `.exe`), liga o log e troca caminhos fixos antigos dentro das sessões. `-CopiarLogsAntigos` também leva os logs antigos.
+5. Copia os plugins `.mxt3`, marca a pasta como "Sempre manter neste dispositivo" e avisa se houver arquivos em conflito do OneDrive.
+6. Atualiza o `config.psd1` e recria o atalho **"MobaXterm (logs)"**.
+
+No PC de casa, rode o mesmo script depois que o OneDrive sincronizar.
+
 ### Opção B – Continuar com o instalado e usar `MobaXterm.exe -i <ini do OneDrive>`
 ```powershell
 # PC do trabalho (Moba FECHADO):
@@ -118,19 +142,50 @@ Um perfil só cobre os três fabricantes (o Moba aplica **um** perfil por sessã
 
 | Grupo | Exemplos |
 |---|---|
-| Problema | `down`, `*down`, `administratively`, `err-disabled`, `Idle`, `error`, `crc`, `drops`, `timeout`, `unreachable`, linhas que começam com `no` / `undo` / `delete` / `deactivate` |
-| OK | `up`, `Established`, `FULL`, `forwarding`, `enabled`, `active`; linhas `description`, `hostname`, `sysname`, `host-name` |
-| Endereços / interfaces | IPv4 (com /máscara), IPv6, MAC (3 formatos), VLAN/Vlanif, `Gi0/0/1`, `TenGigabitEthernet1/1`, `Po10`, `GE0/3/0`, `100GE1/0/1`, `Eth-Trunk10`, `ge-0/0/0.0`, `xe-`, `et-`, `ae0`, `irb.100`, `lo0` |
+| **Vermelho: atenção** | `down`, `*down`, `administratively`, `err-disabled`, BGP `Idle`/`Connect`/`OpenSent`, `error`, `timeout`, `unreachable`; linhas que começam com `no` / `undo` / `delete` / `deactivate` |
+| **Vermelho: contadores** | só erros **diferentes de zero**: `152 input errors`, `37 CRC`, `Total Error: 12` (com `0 CRC` não pinta) |
+| **Vermelho: limites** | uso ≥ 90% (`95.2%`), potência óptica fraca (`-25 dBm` ou menos) |
+| **Vermelho: syslog** | severidade 0 a 3: `%LINK-3-UPDOWN`, `%%01XXX/2/...` |
+| **Vermelho: prompt em modo config** | `R1(config-if)#`, `[~NE40]`, `[*NE40]` (alteração ainda sem commit), `user@mx#`, `[edit ...]`. Você vê na hora que está em modo de configuração |
+| **Vermelho/verde: diff** | linhas `- ...` / `+ ...` de `show \| compare` (Juniper) e `display configuration candidate` (Huawei) |
+| Verde: OK | `up`, `Established`, `FULL`, `forwarding`, `enabled`, `full-duplex`; linhas `description`, `hostname`, `sysname`, `host-name` |
+| Endereços / interfaces | IPv4 (com /máscara), IPv6, MAC (3 formatos), VLAN/Vlanif, `AS65001`, `Gi0/0/1`, `Po10`, `GE0/3/0`, `100GE1/0/1`, `Eth-Trunk10`, `ge-0/0/0.0`, `xe-`, `et-`, `ae0`, `irb.100`, `lo0` |
 | Comentários | linhas `!` (Cisco) e `#` (Huawei/Juniper) |
-| Blocos de config | `interface`, `bgp`, `ospf`, `isis`, `mpls`, `vpn-instance`, `route-policy`, `policy-statement`, `protocols`, `routing-instances`, `firewall`... |
+| Blocos de config | `interface`, `bgp`, `ospf`, `isis`, `mpls`, `vpn-instance`, `route-policy`, `pppoe`, `radius`, `ip pool`, `policy-statement`, `routing-instances`... |
 | Comandos | `show`, `display`, `dis`, `ping`, `tracert`, `system-view`, `commit`, `rollback`, `save`, `set`... |
-| Prompts | `R1#`, `R1(config-if)#`, `<HUAWEI>`, `[~HUAWEI-GE0/0/1]`, `user@mx>`, `[edit protocols bgp]` |
+| Prompts normais | `R1#`, `R1>`, `<NE40>`, `user@mx>` |
+
+Limitações: o estado BGP `Active` não fica vermelho, porque "active" aparece em saídas normais (ex.: `10 active routes`). O prompt do Huawei VRP5 sem `~`/`*` (`[HUAWEI]`) não é tratado como modo config.
 
 Quer ajustar? Edite as regex no próprio Moba (*Settings > Terminal > Syntax highlighting > editar*) ou em `Syntax-Redes.ini` e rode o instalador de novo. O arquivo está em Latin-1: o caractere `¨` marca início/fim de linha nas regex do Moba.
 
 ---
 
-## 4. Melhorias que valem a pena no MobaXterm
+## 4. Anti-idle (a sessão não cai por inatividade)
+
+O MobaXterm só tem o **SSH keepalive** (*Settings > SSH > SSH keepalive*, que já está ligado na sua config). Ele manda pacotes do protocolo SSH, o que segura firewall e NAT, mas **não conta como tecla digitada**. Por isso o `exec-timeout` (Cisco), o `idle-timeout` (Huawei) e o `idle-timeout` (Juniper) derrubam a sessão do mesmo jeito. O SecureCRT resolve isso mandando caracteres ("anti-idle"). O `AntiIdle\MobaAntiIdle.ahk` faz o mesmo:
+
+- A cada 240 s manda **Espaço + Backspace** para o terminal do Moba. Não apaga o que você já digitou.
+- Não envia na janela em que você está digitando naquele momento.
+- Ícone na bandeja: pausar, enviar agora, status. Atalho `Ctrl+Alt+Shift+A` liga e pausa.
+- Fecha sozinho quando o Moba fecha.
+
+**Instalação**
+1. Instale o [AutoHotkey v2](https://www.autohotkey.com), ou use o zip portable e coloque o `AutoHotkey64.exe` dentro da pasta `AntiIdle` (assim ele também vai pelo OneDrive).
+2. Em `config.psd1`: `AntiIdle = $true` e `AntiIdleSegundos = 240` (use menos que o timeout do equipamento).
+3. Abra o Moba pelo atalho **"MobaXterm (logs)"**: o anti-idle sobe junto.
+4. Na primeira vez, clique com o botão direito no ícone > **Listar janelas do Moba** e confira se a janela do Moba está marcada com `[X]`. Se não estiver, ajuste `ClassesAlvo` no começo do `.ahk`.
+
+**Limitação importante:** o Windows só deixa mandar teclas para a **aba ativa** de cada janela do Moba. Para manter várias sessões vivas, **destaque as abas importantes** (botão *Detach* ou arrastar a aba para fora): cada janela destacada recebe o anti-idle.
+
+**Alternativa no equipamento** (se a política da empresa permitir):
+- Cisco: `line vty 0 4` → `exec-timeout 0 0`. No NX-OS, só na sessão: `terminal session-timeout 0`.
+- Huawei: `user-interface vty 0 4` → `idle-timeout 0 0`.
+- Juniper, só na sessão atual, sem mexer na config: `set cli idle-timeout 0`.
+
+---
+
+## 5. Melhorias que valem a pena no MobaXterm
 
 **Produtividade**
 - **MultiExec** (botão na barra): digita o mesmo comando em vários equipamentos ao mesmo tempo (ex.: `display bgp peer` em todos os NE).
@@ -163,4 +218,6 @@ Quer ajustar? Edite as regex no próprio Moba (*Settings > Terminal > Syntax hig
 - [Mobatek blog – MobaXterm configuration settings](https://blog.mobatek.net/post/mobaxterm-configuration-settings/)
 - [Mobatek blog – How to configure the shared sessions](https://blog.mobatek.net/post/configure-shared-sessions/)
 - [Mobatek blog – novidades da versão 10 (popup terminal, atalhos)](https://blog.mobatek.net/post/mobaxterm-new-release-10.0/)
+- [SSH session disconnects in MobaXterm (keepalive)](https://community.oracle.com/customerconnect/discussion/636799/ssh-session-disconnects-after-a-few-minutes-of-inactivity-when-using-mobaxterm-client)
+- [SecureCRT anti-idle / keepalive](https://www.itechguides.com/keep-securecrt-ssh-sessions-from-disconnecting-keepalives-timeouts-and-recovery/)
 - [Syncing your SSH/RDP sessions with Dropbox and MobaXterm](https://grumpyneteng.com/syncing-your-sshrdp-sessions-with-dropbox-and-mobaxterm/)

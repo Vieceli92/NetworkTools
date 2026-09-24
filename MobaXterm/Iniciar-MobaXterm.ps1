@@ -33,6 +33,22 @@ $inicio = @{ FilePath = $cfg.MobaExe; PassThru = $true }
 if ($argumentos) { $inicio.ArgumentList = $argumentos }
 $proc = Start-Process @inicio
 
+if ($cfg.AntiIdle) {
+    $ahk = Join-Path $PSScriptRoot 'AntiIdle\MobaAntiIdle.ahk'
+    $motor = @(
+        (Join-Path $PSScriptRoot 'AntiIdle\AutoHotkey64.exe'),
+        (Join-Path $env:ProgramFiles 'AutoHotkey\v2\AutoHotkey64.exe'),
+        (Join-Path $env:ProgramFiles 'AutoHotkey\v2\AutoHotkey.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\AutoHotkey\v2\AutoHotkey64.exe')
+    ) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    if ($motor) {
+        $seg = if ($cfg.AntiIdleSegundos) { $cfg.AntiIdleSegundos } else { 240 }
+        Start-Process -FilePath $motor -ArgumentList ('"{0}"' -f $ahk), $seg
+    } else {
+        Write-Warning 'AntiIdle ligado, mas o AutoHotkey v2 nao foi encontrado (instale ou coloque AutoHotkey64.exe na pasta AntiIdle).'
+    }
+}
+
 if ($cfg.OrganizarAoFechar) {
     $proc.WaitForExit()
     try { & $organizador | Out-Null } catch { Write-Warning "Falha ao organizar logs: $_" }

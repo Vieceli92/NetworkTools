@@ -37,4 +37,10 @@
 
     # Organiza novamente quando o MobaXterm for fechado (so pelo atalho do launcher)
     OrganizarAoFechar  = $true
+
+    # Anti-idle (estilo SecureCRT): manda Espaco+Backspace para o Moba de tempos em tempos
+    # para o exec-timeout/idle-timeout dos equipamentos nao derrubar a sessao.
+    # Precisa do AutoHotkey v2 instalado, ou do AutoHotkey64.exe dentro da pasta AntiIdle.
+    AntiIdle           = $true
+    AntiIdleSegundos   = 240
 }
