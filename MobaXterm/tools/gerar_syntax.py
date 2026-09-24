@@ -4,7 +4,8 @@
 O MobaXterm tem 8 grupos de regex por perfil (Def1..Def8), cada um com uma cor fixa.
 Seguindo o esquema dos perfis nativos do Moba:
   Def1 URL | Def2 ruim (vermelho) | Def3 bom (verde) | Def4 enderecos/interfaces
-  Def5 comentarios | Def6 blocos/protocolos | Def7 comandos | Def8 prompts
+  Def5 comentarios | Def6 blocos/protocolos | Def7 comandos e prompts | Def8 vazio (o Moba faz
+  esse grupo PISCAR, por isso nao e usado)
 No arquivo, o caractere U+00A8 marca inicio/fim de linha (o Moba usa isso no lugar de ^ e $).
 
 Ideias adaptadas dos perfis de SecureCRT da comunidade:
@@ -91,7 +92,8 @@ CMDS = ("show|display|dis|sh|ping|traceroute|tracert|trace|telnet|ssh|stelnet|co
         "debugging|clear|reset|set|activate|edit|top")
 CMDS_EXTRA = ("|commit check|ip( address)?|ipv6 address|route|ip route-static|route-static|access-(list|group)|"
               "port-forward|mtu|speed|duplex|autoneg|negotiation auto|rate-limit|encapsulation|media-type")
-DEF8 = L + "(<[A-Za-z0-9_.:/-]+>|" + H + "@" + H + "[>%]|" + H + "[#>])"
+# prompts normais (fora do modo config): <HUAWEI>, user@mx>, R1#, R1>
+PROMPT = L + "(<[A-Za-z0-9_.:/-]+>|" + H + "@" + H + "[>%]|" + H + "[#>])"
 URL = r"[^A-Za-z_&-](http(s)?://[A-Za-z0-9_.&?=%~#{}()@+-]+:?[A-Za-z0-9_./&?=%~#{}()@+-]+)[^A-Za-z0-9_-]"
 
 def perfil(nome, completo):
@@ -102,8 +104,9 @@ def perfil(nome, completo):
         4: def4(completo),
         5: DEF5,
         6: K + "(" + BLOCOS + (BLOCOS_EXTRA if completo else "") + ")" + K,
-        7: K + "(" + CMDS + (CMDS_EXTRA if completo else "") + ")" + K,
-        8: DEF8,
+        # prompts vao junto com os comandos: o grupo 8 do Moba PISCA
+        7: "(" + K + "(" + CMDS + (CMDS_EXTRA if completo else "") + ")" + K + "|" + PROMPT + "(" + CMDS + ")?)",
+        8: "",
     }
     if not completo:
         grandes = {i: len(v) for i, v in defs.items() if len(v) > 690}

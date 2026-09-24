@@ -170,7 +170,7 @@ Um perfil só cobre os três fabricantes (o Moba aplica **um** perfil por sessã
 | Comentários | linhas `!` (Cisco) e `#` (Huawei/Juniper) |
 | Blocos de config | `interface`, `bgp`, `ospf`, `isis`, `mpls`, `vpn-instance`, `route-policy`, `pppoe`, `radius`, `ip pool`, `policy-statement`, `routing-instances`... |
 | Comandos | `show`, `display`, `dis`, `ping`, `tracert`, `system-view`, `commit`, `rollback`, `save`, `set`... |
-| Prompts normais | `R1#`, `R1>`, `<NE40>`, `user@mx>` |
+| Prompts normais | `R1#`, `R1>`, `<NE40>`, `user@mx>`, com a mesma cor dos comandos. O grupo 8 do Moba faz o texto **piscar**, por isso fica vazio |
 
 O perfil **compacto** deixa de fora: IPv6, `reliability`/`txload`/`Input queue`, estados OSPF travados e alguns sinônimos (`invalid`, `lost`, `blocking`, `suspended`...).
 
