@@ -63,8 +63,16 @@ foreach ($perfil in $perfis) {
         while ($fim -lt $linhas.Count -and $linhas[$fim] -notmatch '^\[') { $fim++ }
         $linhas.RemoveRange($inicio, $fim - $inicio)
     } else {
-        $inicio = $linhas.Count
-        if ($inicio -gt 0 -and $linhas[$inicio - 1] -ne '') { $linhas.Add(''); $inicio++ }
+        # novo slot: logo depois do ultimo [CustomSyntaxN] existente (ou no fim do arquivo)
+        $ultimo = -1
+        for ($i = 0; $i -lt $linhas.Count; $i++) { if ($linhas[$i] -match '^\[CustomSyntax\d+\]$') { $ultimo = $i } }
+        if ($ultimo -ge 0) {
+            $inicio = $ultimo + 1
+            while ($inicio -lt $linhas.Count -and $linhas[$inicio] -notmatch '^\[') { $inicio++ }
+        } else {
+            $inicio = $linhas.Count
+            if ($inicio -gt 0 -and $linhas[$inicio - 1] -ne '') { $linhas.Add(''); $inicio++ }
+        }
     }
     $linhas.InsertRange($inicio, [string[]](@("[CustomSyntax$alvo]") + $perfil + ''))
     $resumo += "  [CustomSyntax$alvo] $nome"

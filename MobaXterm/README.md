@@ -18,6 +18,7 @@ Scripts PowerShell (Windows PowerShell 5.1 ou PowerShell 7) para:
 | `Iniciar-MobaXterm.ps1` | Organiza os logs → abre o Moba → organiza de novo quando o Moba fecha |
 | `Instalar-MobaTools.ps1` | Cria o atalho **"MobaXterm (logs)"** e (opcional) uma tarefa agendada |
 | `Configurar-SyncOneDrive.ps1` | Coloca o `MobaXterm.ini` (sessões) no OneDrive |
+| `Ajustar-MobaIni.ps1` | Nome de log limpo (`&S_&H_&T`), sessões sem " (usuário)", X server iniciando junto, SSH sem GSSAPI |
 | `Migrar-ParaPortable.ps1` | Migra o Moba instalado para o **portable no OneDrive** (ini, logs, plugins, atalho) |
 | `Syntax-Redes.ini` + `Instalar-SyntaxRedes.ps1` | Perfis de cores "Custom: Redes" (completo e compacto). Gerados por `tools/gerar_syntax.py` |
 | `AntiIdle\MobaAntiIdle.ahk` | **Anti-idle** estilo SecureCRT (a sessão não cai por `idle-timeout`) |
@@ -61,6 +62,14 @@ Log\
 │  └─ 09-Setembro\24\SONIC-...-(2026-09-24_17-02-10).log
 └─ SESSAO-ABERTA-....log                  ← em uso: fica aqui até fechar
 ```
+
+### Formato do nome do log
+`.\Ajustar-MobaIni.ps1` (com o Moba fechado) faz estes ajustes:
+- troca `&S-&U-[@&H]&P-(&T)` por **`&S_&H_&T`**: sessão_host_horário, sem `[ ] ( ) @` e sem espaços. Colchetes quebram comandos do PowerShell, e o usuário e a porta estavam repetidos;
+- renomeia sessões `NOME (usuario)` para `NOME`, só se não existir outra sessão com o mesmo nome na pasta;
+- deixa ligado o X server na abertura do Moba (`XAuto=1`) e desliga o GSSAPI/Kerberos no SSH (`UseGSSAPI=0`, que só atrasa o login em roteador).
+
+Também funciona num `.mobaconf` exportado: `-Ini arquivo.mobaconf -Saida ajustado.mobaconf`. `-SoLogs` faz só a parte de log. `-WhatIf` mostra o que mudaria.
 
 ### Opções (em `config.psd1`)
 - `PastaLogs = ''` → descobre sozinho lendo `LogFolder=` do `MobaXterm.ini` (entende `_MobaFolder_`, `_AppDataDir_` etc.).
