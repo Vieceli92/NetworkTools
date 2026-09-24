@@ -19,7 +19,7 @@ Scripts PowerShell (Windows PowerShell 5.1 ou PowerShell 7) para:
 | `Instalar-MobaTools.ps1` | Cria o atalho **"MobaXterm (logs)"** e (opcional) uma tarefa agendada |
 | `Configurar-SyncOneDrive.ps1` | Coloca o `MobaXterm.ini` (sessões) no OneDrive |
 | `Migrar-ParaPortable.ps1` | Migra o Moba instalado para o **portable no OneDrive** (ini, logs, plugins, atalho) |
-| `Syntax-Redes.ini` + `Instalar-SyntaxRedes.ps1` | Perfil de cores "Custom: Redes (Cisco/Huawei/Juniper)" |
+| `Syntax-Redes.ini` + `Instalar-SyntaxRedes.ps1` | Perfis de cores "Custom: Redes" (completo e compacto). Gerados por `tools/gerar_syntax.py` |
 | `AntiIdle\MobaAntiIdle.ahk` | **Anti-idle** estilo SecureCRT (a sessão não cai por `idle-timeout`) |
 
 > Dica: coloque esta pasta de scripts dentro do OneDrive — assim ela já fica igual nos dois PCs.
@@ -132,11 +132,17 @@ O script faz backup do ini, copia para `%OneDrive%\MobaXterm\MobaXterm.ini` e gr
 
 ```powershell
 # com o Moba FECHADO
-.\Instalar-SyntaxRedes.ps1          # adiciona [CustomSyntaxN] "Custom: Redes (Cisco/Huawei/Juniper)"
-.\Instalar-SyntaxRedes.ps1 -Slot 3  # alternativa: substitui o "Custom: Cisco (network)" nativo
+.\Instalar-SyntaxRedes.ps1          # instala os 2 perfis (completo e compacto)
+.\Instalar-SyntaxRedes.ps1 -Slot 3  # alternativa: o completo substitui o "Custom: Cisco (network)" nativo
 ```
 
+São dois perfis:
+- **"Custom: Redes (Cisco/Huawei/Juniper)"**: o completo.
+- **"Custom: Redes compacto"**: todas as regras com até 690 caracteres, o mesmo tamanho das que vêm no Moba. Use este se o completo não colorir: o Moba pode ter limite de tamanho, e não consegui confirmar.
+
 Depois escolha o perfil em **Settings > Configuration > Terminal > Syntax highlighting** (padrão para sessões novas) e, nas sessões existentes, em *Edit session > Terminal settings > Syntax highlighting* (dá para selecionar várias sessões e editar de uma vez).
+
+**Inspirado no SecureCRT.** As regras foram adaptadas dos perfis de *keyword highlighting* mais usados por engenheiros de rede no SecureCRT: [feralpacket](https://github.com/feralpacket/securecrt-keyword-highlighting) (erro só quando o contador é ≠ 0, prompt de config destacado, syslog por severidade, reliability/txload, RT/RD) e [netOS-cli](https://github.com/h-lopez/netOS-cli) (`u/u`, `A/D`, formatos de MAC). Os arquivos `.ini` do SecureCRT **não funcionam direto no Moba**: o SecureCRT aceita dezenas de regras, cada uma com sua cor, e o Moba tem **8 grupos com cores fixas**. Então as regras foram reagrupadas por significado (ruim, bom, endereço...).
 
 Um perfil só cobre os três fabricantes (o Moba aplica **um** perfil por sessão). O que ele destaca (as cores seguem o esquema dos perfis nativos do Moba):
 
@@ -144,16 +150,20 @@ Um perfil só cobre os três fabricantes (o Moba aplica **um** perfil por sessã
 |---|---|
 | **Vermelho: atenção** | `down`, `*down`, `administratively`, `err-disabled`, BGP `Idle`/`Connect`/`OpenSent`, `error`, `timeout`, `unreachable`; linhas que começam com `no` / `undo` / `delete` / `deactivate` |
 | **Vermelho: contadores** | só erros **diferentes de zero**: `152 input errors`, `37 CRC`, `Total Error: 12` (com `0 CRC` não pinta) |
-| **Vermelho: limites** | uso ≥ 90% (`95.2%`), potência óptica fraca (`-25 dBm` ou menos) |
+| **Vermelho: limites** | uso ≥ 90% (`95.2%`), potência óptica fraca (`-25 dBm` ou menos), `reliability` < 255/255, `txload`/`rxload` ≥ 230/255, drops na `Input queue` |
+| **Vermelho/verde: flags** | port-channel e Huawei: `Gi1/0/2(s)`, `(D)`, `(I)`, `GE0/3/0(b)`, `(E)` em vermelho; `(P)`, `(SU)`, `(RU)` em verde. `A/D`, `u/D` em vermelho; `u/u` em verde |
+| **Vermelho: OSPF travado** | `EXSTART`, `EXCHANGE`, `LOADING`, `INIT` (só no completo). `FULL` fica verde |
 | **Vermelho: syslog** | severidade 0 a 3: `%LINK-3-UPDOWN`, `%%01XXX/2/...` |
 | **Vermelho: prompt em modo config** | `R1(config-if)#`, `[~NE40]`, `[*NE40]` (alteração ainda sem commit), `user@mx#`, `[edit ...]`. Você vê na hora que está em modo de configuração |
 | **Vermelho/verde: diff** | linhas `- ...` / `+ ...` de `show \| compare` (Juniper) e `display configuration candidate` (Huawei) |
 | Verde: OK | `up`, `Established`, `FULL`, `forwarding`, `enabled`, `full-duplex`; linhas `description`, `hostname`, `sysname`, `host-name` |
-| Endereços / interfaces | IPv4 (com /máscara), IPv6, MAC (3 formatos), VLAN/Vlanif, `AS65001`, `Gi0/0/1`, `Po10`, `GE0/3/0`, `100GE1/0/1`, `Eth-Trunk10`, `ge-0/0/0.0`, `xe-`, `et-`, `ae0`, `irb.100`, `lo0` |
+| Endereços / interfaces | IPv4 (com /máscara ou :porta), IPv6, **RD/RT** (`65001:100`, `45.6.28.1:200`), MAC (3 formatos), VLAN/Vlanif, `AS65001`, `Gi0/0/1`, `Po10`, `GE0/3/0`, `100GE1/0/1`, `Eth-Trunk10`, `ge-0/0/0.0`, `xe-`, `et-`, `ae0`, `irb.100`, `lo0` |
 | Comentários | linhas `!` (Cisco) e `#` (Huawei/Juniper) |
 | Blocos de config | `interface`, `bgp`, `ospf`, `isis`, `mpls`, `vpn-instance`, `route-policy`, `pppoe`, `radius`, `ip pool`, `policy-statement`, `routing-instances`... |
 | Comandos | `show`, `display`, `dis`, `ping`, `tracert`, `system-view`, `commit`, `rollback`, `save`, `set`... |
 | Prompts normais | `R1#`, `R1>`, `<NE40>`, `user@mx>` |
+
+O perfil **compacto** deixa de fora: IPv6, `reliability`/`txload`/`Input queue`, estados OSPF travados e alguns sinônimos (`invalid`, `lost`, `blocking`, `suspended`...).
 
 Limitações: o estado BGP `Active` não fica vermelho, porque "active" aparece em saídas normais (ex.: `10 active routes`). O prompt do Huawei VRP5 sem `~`/`*` (`[HUAWEI]`) não é tratado como modo config.
 
