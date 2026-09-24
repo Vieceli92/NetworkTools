@@ -1,0 +1,5 @@
+# nunca versionar configuracoes/senhas do MobaXterm nem logs
+*.mobaconf
+MobaXterm.ini
+*.ini.bak_*
+*.log
