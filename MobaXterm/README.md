@@ -27,6 +27,32 @@ Scripts PowerShell (Windows PowerShell 5.1 ou PowerShell 7) para:
 
 ---
 
+## Passo a passo rápido
+
+Sempre com o **MobaXterm fechado**, inclusive o ícone perto do relógio.
+
+**PC do trabalho (primeira vez)**
+1. Baixe o zip, clique com o botão direito > Propriedades > **Desbloquear**, e extraia em `%OneDrive%\Documents\MobaXterm\Scripts\`.
+2. No PowerShell, dentro da pasta:
+   ```powershell
+   Get-ChildItem -Recurse | Unblock-File
+   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force
+   .\Migrar-ParaPortable.ps1 -TarefaAgendada   # portable no OneDrive + atalho "MobaXterm (logs)"
+   .\Ajustar-MobaIni.ps1                       # nome de log, sessões, X server, SSH
+   .\Instalar-SyntaxRedes.ps1                  # cores
+   ```
+3. Abra o Moba pelo atalho **"MobaXterm (logs)"** e escolha o perfil em *Settings > Terminal > Syntax highlighting*.
+
+**PC de casa**
+1. Espere o OneDrive sincronizar a pasta `Documents\MobaXterm` e marque **"Sempre manter neste dispositivo"**.
+2. Rode só `.\Migrar-ParaPortable.ps1 -TarefaAgendada`. Ele usa o ini que veio pelo OneDrive; os ajustes e as cores já vêm junto.
+3. Na primeira abertura, use a mesma master password. Chaves SSH: copie `%APPDATA%\MobaXterm\home\.ssh` do trabalho.
+4. Anti-idle: instale o AutoHotkey v2 (ou coloque o `AutoHotkey64.exe` na pasta `AntiIdle`).
+
+**Atualizando os scripts:** desbloqueie o zip novo, extraia por cima e rode de novo só o que mudou (ex.: `.\Instalar-SyntaxRedes.ps1`). Os scripts podem ser rodados várias vezes sem problema: eles atualizam no lugar e fazem backup.
+
+---
+
 ## 1. Logs organizados por data
 
 ### Pré-requisito no MobaXterm
@@ -231,6 +257,19 @@ O MobaXterm só tem o **SSH keepalive** (*Settings > SSH > SSH keepalive*, que j
 **Manutenção**
 - Mesma versão do Moba nos dois PCs (o formato do ini muda entre versões).
 - *Settings > General > Export configuration* de vez em quando, como backup extra.
+
+## 6. Problemas comuns
+
+| Sintoma | Causa | Solução |
+|---|---|---|
+| `... não está assinado digitalmente` | Arquivos baixados vêm marcados "da internet" | `Get-ChildItem -Recurse \| Unblock-File` + `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Se a empresa bloquear por GPO: `powershell -ExecutionPolicy Bypass -File .\Script.ps1` |
+| `'}' de fechamento ausente` | Script copiado e colado do chat/navegador | Baixe a pasta inteira (zip ou GitHub). Os scripts dependem de `MobaTools.Common.ps1` e `config.psd1` |
+| Alteração no ini "some" | O Moba estava aberto e regravou o ini ao fechar | Feche o Moba (inclusive o ícone perto do relógio) e rode de novo |
+| Perfil "Custom: Redes" não aparece na lista | Mesmo motivo acima, ou script gravou em outro ini | `.\Instalar-SyntaxRedes.ps1 -WhatIf` mostra o caminho; tem que ser o `MobaXterm.ini` ao lado do `.exe` |
+| Perfil completo não colore nada | O Moba pode ter limite de tamanho de regex | Use o perfil **"Custom: Redes compacto"** |
+| Texto piscando | Grupo 8 do Moba pisca | Já corrigido: o grupo 8 fica vazio. Rode `Instalar-SyntaxRedes.ps1` de novo |
+| `MobaXterm-NOMEPC.ini` no OneDrive | Moba aberto nos dois PCs ao mesmo tempo | Compare, mantenha o certo como `MobaXterm.ini` e apague o outro |
+| Anti-idle não envia | Janela do Moba não reconhecida | Ícone da bandeja > "Listar janelas do Moba" e ajuste `ClassesAlvo` no `.ahk` |
 
 ### Fontes
 - [MobaXterm – documentação oficial (parâmetros de linha de comando, logs, shared sessions)](https://mobaxterm.mobatek.net/documentation.html)
