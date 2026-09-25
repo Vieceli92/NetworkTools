@@ -252,6 +252,8 @@ Limitações:
 
 Ideias de cores adaptadas do SecureCRT: [feralpacket](https://feralpacket.org/?p=817) e [netOS-cli](https://github.com/h-lopez/netOS-cli).
 
+**Atenção ao editar:** o Moba separa os padrões de cada cor por **vírgula**. Nunca use `{n,m}` nem vírgula nas regras, senão a cor inteira para de funcionar.
+
 Quer ajustar? Edite as regex no próprio Moba (*Settings > Terminal > Syntax highlighting > editar*) ou em `Syntax-Redes.ini` e rode o instalador de novo. O arquivo está em Latin-1: o caractere `¨` marca início/fim de linha nas regex do Moba.
 
 ---
@@ -317,6 +319,7 @@ O MobaXterm só tem o **SSH keepalive** (*Settings > SSH > SSH keepalive*, que j
 | Alteração no ini "some" | O Moba estava aberto e regravou o ini ao fechar | Feche o Moba (inclusive o ícone perto do relógio) e rode de novo |
 | Perfil "Custom: Redes" não aparece na lista | O Moba estava aberto, ou abriu outro ini (ex.: o do AppData) | Atualize os scripts e rode `Instalar-SyntaxRedes.ps1` de novo com o Moba fechado (ele move para os slots 3 e 2). A saída mostra o caminho do ini: tem que ser o que fica ao lado do `.exe` |
 | Perfil completo não colore nada | O Moba pode ter limite de tamanho de regex | Use o perfil **"Custom: Redes compacto"** |
+| Uma cor inteira para de funcionar (ex.: IPs brancos) | O Moba separa os padrões de cada cor por **vírgula**, então um `{1,4}` numa regex quebra o grupo todo | Não use vírgula nas regras. O `tools/gerar_syntax.py` recusa regra com vírgula |
 | Texto piscando | Grupo 8 do Moba pisca | Já corrigido: o grupo 8 fica vazio. Rode `Instalar-SyntaxRedes.ps1` de novo |
 | Moba abre sem as sessões/cores do OneDrive | O `.exe` é da versão **instalada**: ela ignora o ini ao lado dele e usa `%APPDATA%\MobaXterm\MobaXterm.ini` | Rode `Migrar-ParaPortable.ps1` de novo (ele grava `MobaIni` no `config.psd1`) e abra sempre pelo atalho **"MobaXterm (logs)"**, que passa `-i <ini do OneDrive>` |
 | `MobaXterm-NOMEPC.ini` no OneDrive | Moba aberto nos dois PCs ao mesmo tempo | Compare, mantenha o certo como `MobaXterm.ini` e apague o outro |
