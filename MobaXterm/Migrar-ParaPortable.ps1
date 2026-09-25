@@ -115,6 +115,12 @@ if ($IniOrigem) {
     if (-not $origem) { throw 'Nenhum MobaXterm.ini encontrado. Abra o portable e use Settings > Configuration > General > Import configuration (.mobaconf).' }
 }
 
+$iniAppData = if ($env:APPDATA) { Join-Path (Join-Path $env:APPDATA 'MobaXterm') 'MobaXterm.ini' }
+if ($iniAppData -and (Test-Path -LiteralPath $iniAppData) -and (Get-CaminhoCheio $iniAppData) -ne (Get-CaminhoCheio $iniDestino)) {
+    Write-Aviso "Existe ${iniAppData} - e o ini que o Moba INSTALADO usa. Abra sempre pelo atalho 'MobaXterm (logs)',"
+    Write-Info  'que passa o ini do OneDrive com -i. O atalho original do Moba abriria as configuracoes do AppData.'
+}
+
 # ------------------------------------------------------------------ 3) backup
 Write-Passo 'Backup'
 $pastaBackup = Join-Path $PastaPortable ('_backup_migracao_{0:yyyyMMdd_HHmmss}' -f $agora)
@@ -220,16 +226,23 @@ foreach ($c in $conflitos) { Write-Aviso "Possivel conflito do OneDrive: $($c.Na
 # ------------------------------------------------------- 8) config dos scripts
 Write-Passo 'Configurando os scripts'
 $arquivoCfg = Join-Path $PSScriptRoot 'config.psd1'
-$exeCfg = if ($env:OneDrive -and $exe.FullName.StartsWith($env:OneDrive, [StringComparison]::OrdinalIgnoreCase)) {
-    '%OneDrive%' + $exe.FullName.Substring($env:OneDrive.Length) } else { $exe.FullName }
+function ConvertTo-CaminhoCfg([string]$Caminho) {
+    if ($env:OneDrive -and $Caminho.StartsWith($env:OneDrive, [StringComparison]::OrdinalIgnoreCase)) {
+        return '%OneDrive%' + $Caminho.Substring($env:OneDrive.Length) }
+    return $Caminho
+}
+$exeCfg = ConvertTo-CaminhoCfg $exe.FullName
+# O ini e passado com "-i": se o .exe for da versao INSTALADA, ele ignoraria o ini ao
+# lado dele e usaria %APPDATA%\MobaXterm\MobaXterm.ini (sem as sessoes/cores do OneDrive).
+$iniCfg = ConvertTo-CaminhoCfg $iniDestino
 $texto = Get-Content -LiteralPath $arquivoCfg -Raw
-foreach ($par in @(@('MobaExe', $exeCfg), @('MobaIni', ''), @('PastaLogs', ''))) {
+foreach ($par in @(@('MobaExe', $exeCfg), @('MobaIni', $iniCfg), @('PastaLogs', ''))) {
     $valor = $par[1]
     $texto = [regex]::Replace($texto, "(?m)^(\s*$($par[0])\s*=\s*)'[^']*'", { param($m) "$($m.Groups[1].Value)'$valor'" })
 }
 if ($PSCmdlet.ShouldProcess($arquivoCfg, "MobaExe = '$exeCfg'")) {
     Set-Content -LiteralPath $arquivoCfg -Value $texto -NoNewline -Encoding UTF8
-    Write-Ok "config.psd1: MobaExe = '$exeCfg', MobaIni = '' (usa o ini ao lado do exe), PastaLogs = automatico"
+    Write-Ok "config.psd1: MobaExe = '$exeCfg', MobaIni = '$iniCfg' (sempre abre com -i), PastaLogs = automatico"
 }
 
 if (-not $SemAtalho -and $PSCmdlet.ShouldProcess('Atalho "MobaXterm (logs)"', 'Recriar apontando para o portable')) {

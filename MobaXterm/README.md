@@ -270,6 +270,7 @@ O MobaXterm só tem o **SSH keepalive** (*Settings > SSH > SSH keepalive*, que j
 | Perfil "Custom: Redes" não aparece na lista | Versão antiga do instalador usava os slots 4 e 5, que o Moba não mostra; ou o Moba estava aberto; ou o script gravou em outro ini | Atualize os scripts e rode `Instalar-SyntaxRedes.ps1` de novo com o Moba fechado (ele move para os slots 3 e 2). A saída mostra o caminho do ini: tem que ser o que fica ao lado do `.exe` |
 | Perfil completo não colore nada | O Moba pode ter limite de tamanho de regex | Use o perfil **"Custom: Redes compacto"** |
 | Texto piscando | Grupo 8 do Moba pisca | Já corrigido: o grupo 8 fica vazio. Rode `Instalar-SyntaxRedes.ps1` de novo |
+| Moba abre sem as sessões/cores do OneDrive | O `.exe` é da versão **instalada**: ela ignora o ini ao lado dele e usa `%APPDATA%\MobaXterm\MobaXterm.ini` | Rode `Migrar-ParaPortable.ps1` de novo (ele grava `MobaIni` no `config.psd1`) e abra sempre pelo atalho **"MobaXterm (logs)"**, que passa `-i <ini do OneDrive>` |
 | `MobaXterm-NOMEPC.ini` no OneDrive | Moba aberto nos dois PCs ao mesmo tempo | Compare, mantenha o certo como `MobaXterm.ini` e apague o outro |
 | Anti-idle não envia | Janela do Moba não reconhecida | Ícone da bandeja > "Listar janelas do Moba" e ajuste `ClassesAlvo` no `.ahk` |
 
