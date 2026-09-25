@@ -212,3 +212,263 @@ function Find-MobaLogTexto {
     if (-not $trecho -and $noNomeAchou) { $trecho = '(nome do arquivo)' }
     return [pscustomobject]@{ Ocorrencias = $total; Trecho = $trecho }
 }
+
+# ------------------------------------------------------------------ comparacao (diff)
+if (-not ('MobaDiff' -as [type])) {
+    Add-Type -Language CSharp -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Text.RegularExpressions;
+
+public class MobaBloco
+{
+    public string Comando; public string Chave; public int Linha; public string Texto;
+    public override string ToString() { return string.Format("linha {0,-6} {1}", Linha, Comando); }
+}
+
+public class MobaLinhaDiff
+{
+    public char Tipo;          // ' ' igual, '-' so em A, '+' so em B, '@' separador
+    public int LinhaA; public int LinhaB; public string Texto;
+}
+
+public static class MobaDiff
+{
+    // <HUAWEI>cmd  [~HUAWEI-GE0/0/1]cmd  user@mx> cmd  user@host:~$ cmd  R1#cmd  R1(config-if)#cmd  R1>cmd
+    static readonly Regex Prompt = new Regex(
+        @"^(<[^<>\s]+>|\[[~*]?[^\[\]\s]+\]|[\w.\-]+@[\w.\-]+(:[^\s]*)?[>#%$]|[\w.\-]+(\([^)\s]*\))?[#>])[ ]?(?<cmd>.*)$",
+        RegexOptions.Compiled);
+
+    static readonly string[] Palavras = {
+        "current-configuration", "running-config", "startup-config", "saved-configuration", "configuration",
+        "interface", "brief", "description", "routing-table", "version", "peer", "neighbor", "summary",
+        "statistics", "verbose", "transceiver", "optical-module", "alarm", "active", "lldp", "arp", "mac-address",
+        "vlan", "bgp", "ospf", "isis", "mpls", "ldp", "vpn-instance", "route", "access-user", "users" };
+
+    // Chave para casar o mesmo comando escrito de formas diferentes: "dis cur" = "display current-configuration"
+    public static string Chave(string cmd)
+    {
+        string c = Regex.Replace(cmd.Trim().ToLowerInvariant(), @"\s+", " ");
+        c = Regex.Replace(c, @"\s*\|\s*no-more$", "");
+        string[] t = c.Split(' ');
+        if (t.Length == 0) return c;
+        if (t[0].Length >= 2 && "display".StartsWith(t[0])) t[0] = "display";
+        else if (t[0].Length >= 2 && "show".StartsWith(t[0])) t[0] = "show";
+        if (t[0] == "display" || t[0] == "show")
+            for (int i = 1; i < t.Length; i++)
+            {
+                if (t[i].Length < 2 || t[i] == "|") break;
+                foreach (string p in Palavras) if (p.StartsWith(t[i])) { t[i] = p; break; }
+            }
+        return string.Join(" ", t);
+    }
+
+    public static List<MobaBloco> Blocos(string texto)
+    {
+        string[] linhas = Linhas(texto);
+        List<MobaBloco> lista = new List<MobaBloco>();
+        MobaBloco atual = null; StringBuilder sb = null;
+        for (int i = 0; i < linhas.Length; i++)
+        {
+            Match m = Prompt.Match(linhas[i]);
+            if (m.Success)
+            {
+                if (atual != null) { atual.Texto = sb.ToString(); lista.Add(atual); atual = null; }
+                string cmd = m.Groups["cmd"].Value.Trim();
+                if (cmd.Length == 0) continue;
+                atual = new MobaBloco(); atual.Comando = cmd; atual.Chave = Chave(cmd); atual.Linha = i + 1;
+                sb = new StringBuilder();
+                continue;
+            }
+            if (atual != null) sb.Append(linhas[i]).Append("\r\n");
+        }
+        if (atual != null) { atual.Texto = sb.ToString(); lista.Add(atual); }
+        return lista;
+    }
+
+    public static string[] Linhas(string texto)
+    {
+        string t = texto.Replace("\r\n", "\n");
+        if (t.EndsWith("\n")) t = t.Substring(0, t.Length - 1);
+        return t.Length == 0 ? new string[0] : t.Split('\n');
+    }
+
+    static string[] Normalizar(string[] l, bool numeros, bool espacos)
+    {
+        string[] r = new string[l.Length];
+        for (int i = 0; i < l.Length; i++)
+        {
+            string s = l[i];
+            if (espacos) s = Regex.Replace(s.Trim(), @"\s+", " ");
+            if (numeros) s = Regex.Replace(s, @"\d+", "#");
+            r[i] = s;
+        }
+        return r;
+    }
+
+    public static List<MobaLinhaDiff> Comparar(string textoA, string textoB, bool ignorarNumeros, bool ignorarEspacos, int limite)
+    {
+        string[] a = Linhas(textoA), b = Linhas(textoB);
+        string[] ka = Normalizar(a, ignorarNumeros, ignorarEspacos), kb = Normalizar(b, ignorarNumeros, ignorarEspacos);
+        int ini = 0;
+        while (ini < a.Length && ini < b.Length && ka[ini] == kb[ini]) ini++;
+        int fa = a.Length, fb = b.Length;
+        while (fa > ini && fb > ini && ka[fa - 1] == kb[fb - 1]) { fa--; fb--; }
+
+        List<MobaLinhaDiff> r = new List<MobaLinhaDiff>();
+        for (int i = 0; i < ini; i++) r.Add(L(' ', i, i, b[i]));
+        foreach (int[] op in Myers(ka, ini, fa - ini, kb, ini, fb - ini, limite))
+        {
+            if (op[0] == 0) r.Add(L(' ', op[1], op[2], b[op[2]]));
+            else if (op[0] == 1) r.Add(L('-', op[1], -1, a[op[1]]));
+            else r.Add(L('+', -1, op[2], b[op[2]]));
+        }
+        for (int i = 0; i < a.Length - fa; i++) r.Add(L(' ', fa + i, fb + i, b[fb + i]));
+        return r;
+    }
+
+    static MobaLinhaDiff L(char tipo, int ia, int ib, string texto)
+    {
+        MobaLinhaDiff d = new MobaLinhaDiff();
+        d.Tipo = tipo; d.LinhaA = ia + 1; d.LinhaB = ib + 1; d.Texto = texto;
+        return d;
+    }
+
+    // Myers O((N+M)D). Guarda so a faixa usada de V a cada passo: memoria O(D^2).
+    static List<int[]> Myers(string[] a, int a0, int n, string[] b, int b0, int m, int limite)
+    {
+        List<int[]> ops = new List<int[]>();
+        int max = n + m;
+        if (max == 0) return ops;
+        int off = max + 1;
+        int[] v = new int[2 * max + 3];
+        List<int[]> trace = new List<int[]>();
+        bool fim = false;
+        for (int d = 0; d <= max && !fim; d++)
+        {
+            if (d > limite) throw new InvalidOperationException("Diferencas demais para comparar (mais de " + limite + "). Escolha um comando especifico.");
+            int[] snap = new int[2 * d + 3];
+            Array.Copy(v, off - (d + 1), snap, 0, 2 * d + 3);
+            trace.Add(snap);
+            for (int k = -d; k <= d; k += 2)
+            {
+                int x = (k == -d || (k != d && v[off + k - 1] < v[off + k + 1])) ? v[off + k + 1] : v[off + k - 1] + 1;
+                int y = x - k;
+                while (x < n && y < m && a[a0 + x] == b[b0 + y]) { x++; y++; }
+                v[off + k] = x;
+                if (x >= n && y >= m) { fim = true; break; }
+            }
+        }
+        int cx = n, cy = m;
+        for (int d = trace.Count - 1; d >= 0; d--)
+        {
+            int[] s = trace[d];
+            int k = cx - cy;
+            int pk = (k == -d || (k != d && s[k - 1 + d + 1] < s[k + 1 + d + 1])) ? k + 1 : k - 1;
+            int px = s[pk + d + 1], py = px - pk;
+            while (cx > px && cy > py) { ops.Add(new int[] { 0, a0 + cx - 1, b0 + cy - 1 }); cx--; cy--; }
+            if (d > 0)
+            {
+                if (cx == px) ops.Add(new int[] { 2, -1, b0 + cy - 1 });
+                else ops.Add(new int[] { 1, a0 + cx - 1, -1 });
+            }
+            cx = px; cy = py;
+        }
+        ops.Reverse();
+        return ops;
+    }
+
+    // Linhas a mostrar: tudo (contexto < 0) ou so mudancas com N linhas de contexto e separadores '@'
+    public static List<MobaLinhaDiff> Visiveis(List<MobaLinhaDiff> d, int contexto)
+    {
+        if (contexto < 0) return d;
+        int n = d.Count;
+        bool[] mostrar = new bool[n];
+        for (int i = 0; i < n; i++)
+            if (d[i].Tipo != ' ')
+                for (int j = Math.Max(0, i - contexto); j <= Math.Min(n - 1, i + contexto); j++) mostrar[j] = true;
+        List<MobaLinhaDiff> r = new List<MobaLinhaDiff>();
+        bool pulou = true;
+        for (int i = 0; i < n; i++)
+        {
+            if (!mostrar[i]) { pulou = true; continue; }
+            if (pulou)
+            {
+                MobaLinhaDiff sep = new MobaLinhaDiff(); sep.Tipo = '@';
+                sep.LinhaA = d[i].LinhaA; sep.LinhaB = d[i].LinhaB; r.Add(sep);
+                pulou = false;
+            }
+            r.Add(d[i]);
+        }
+        return r;
+    }
+
+    static string Prefixo(MobaLinhaDiff l)
+    {
+        if (l.Tipo == '@')
+            return "@@ A linha " + (l.LinhaA > 0 ? l.LinhaA.ToString() : "-") + " | B linha " + (l.LinhaB > 0 ? l.LinhaB.ToString() : "-") + " @@";
+        return string.Format("{0,5} {1,5} {2} ", l.LinhaA > 0 ? l.LinhaA.ToString() : "", l.LinhaB > 0 ? l.LinhaB.ToString() : "", l.Tipo);
+    }
+
+    public static string ParaTexto(List<MobaLinhaDiff> linhas)
+    {
+        StringBuilder sb = new StringBuilder();
+        foreach (MobaLinhaDiff l in linhas) sb.Append(Prefixo(l)).Append(l.Tipo == '@' ? "" : l.Texto).Append("\r\n");
+        return sb.ToString();
+    }
+
+    public static string ParaRtf(List<MobaLinhaDiff> linhas)
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.Append(@"{\rtf1\ansi\deff0{\fonttbl{\f0\fmodern Consolas;}}");
+        sb.Append(@"{\colortbl;\red200\green200\blue200;\red255\green105\blue105;\red110\green225\blue110;\red90\green190\blue255;\red120\green120\blue120;}");
+        sb.Append(@"\f0\fs20 ");
+        foreach (MobaLinhaDiff l in linhas)
+        {
+            int cor = l.Tipo == '-' ? 2 : l.Tipo == '+' ? 3 : l.Tipo == '@' ? 4 : 5;
+            sb.Append(@"\cf").Append(cor).Append(' ');
+            Escapar(sb, Prefixo(l));
+            if (l.Tipo != '@') { if (l.Tipo == ' ') sb.Append(@"\cf1 "); Escapar(sb, l.Texto); }
+            sb.Append("\\par\r\n");
+        }
+        sb.Append('}');
+        return sb.ToString();
+    }
+
+    static void Escapar(StringBuilder sb, string s)
+    {
+        foreach (char c in s)
+        {
+            if (c == '\\' || c == '{' || c == '}') sb.Append('\\').Append(c);
+            else if (c == '\t') sb.Append(@"\tab ");
+            else if (c > 127) sb.Append(@"\u").Append((int)(short)c).Append('?');
+            else sb.Append(c);
+        }
+    }
+}
+'@
+}
+
+function Compare-MobaLog {
+    # Compara dois textos (logs inteiros ou saidas de um comando). Devolve Linhas, Adicionadas, Removidas
+    param([string]$TextoA, [string]$TextoB, [switch]$IgnorarNumeros, [switch]$IgnorarEspacos, [int]$Limite = 5000)
+    $d = [MobaDiff]::Comparar($TextoA, $TextoB, [bool]$IgnorarNumeros, [bool]$IgnorarEspacos, $Limite)
+    [pscustomobject]@{
+        Linhas      = $d
+        Removidas   = @($d | Where-Object { $_.Tipo -eq [char]'-' }).Count
+        Adicionadas = @($d | Where-Object { $_.Tipo -eq [char]'+' }).Count
+    }
+}
+
+function Get-MobaLogBlocos([string]$Texto) {
+    # Blocos "prompt + comando + saida" do log limpo
+    return , [MobaDiff]::Blocos($Texto)
+}
+
+function Get-MobaLogChaveEquipamento($Item) {
+    # Identifica o equipamento para achar o log anterior: host, ou nome da sessao
+    if ($Item.Host) { return $Item.Host.ToLower() }
+    $base = [IO.Path]::GetFileNameWithoutExtension($Item.Nome)
+    return (($base -split '[_(\[]')[0].TrimEnd('-', ' ')).ToLower()
+}

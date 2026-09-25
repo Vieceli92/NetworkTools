@@ -15,7 +15,8 @@ Scripts PowerShell (Windows PowerShell 5.1 ou PowerShell 7) para:
 |---|---|
 | `config.psd1` | **Única coisa que você edita**: caminho do Moba, pasta de logs, retenção etc. |
 | `Organizar-LogsMoba.ps1` | Move os logs para `2026\09-Setembro\24\...` |
-| `Pesquisar-Logs.ps1` + `MobaLogBusca.ps1` | **Janela de busca nos logs** (hostname, IP, texto), com prévia do log limpo |
+| `Pesquisar-Logs.ps1` + `MobaLogBusca.ps1` | **Janela de busca e comparação (diff) dos logs**, com prévia do log limpo |
+| `Pesquisar Logs.cmd` / `Criar Atalhos.cmd` | **Dois cliques**: abre a janela de busca / cria os ícones na Área de Trabalho |
 | `Iniciar-MobaXterm.ps1` | Organiza os logs → abre o Moba → organiza de novo quando o Moba fecha |
 | `Instalar-MobaTools.ps1` | Cria o atalho **"MobaXterm (logs)"** e (opcional) uma tarefa agendada |
 | `Configurar-SyncOneDrive.ps1` | Coloca o `MobaXterm.ini` (sessões) no OneDrive |
@@ -43,7 +44,7 @@ Sempre com o **MobaXterm fechado**, inclusive o ícone perto do relógio.
    .\Instalar-SyntaxRedes.ps1                  # cores
    ```
 3. Abra o Moba pelo atalho **"MobaXterm (logs)"** e escolha o perfil em *Settings > Terminal > Syntax highlighting*.
-4. Para achar um log antigo: ícone **"Pesquisar logs Moba"** (rode `.\Instalar-MobaTools.ps1` de novo se ele ainda não existir).
+4. Para achar ou comparar logs: dois cliques em **`Pesquisar Logs.cmd`**. Para ter os ícones na Área de Trabalho: dois cliques em **`Criar Atalhos.cmd`**.
 
 **PC de casa**
 1. Espere o OneDrive sincronizar a pasta `Documents\MobaXterm` e marque **"Sempre manter neste dispositivo"**.
@@ -91,16 +92,26 @@ Log\
 └─ SESSAO-ABERTA-....log                  ← em uso: fica aqui até fechar
 ```
 
-### Pesquisar nos logs (janela)
-Ícone **"Pesquisar logs Moba"** na Área de Trabalho (criado pelo `Instalar-MobaTools.ps1`), ou:
-```powershell
-powershell -ExecutionPolicy Bypass -STA -File .\Pesquisar-Logs.ps1
-```
-- Digite um **hostname, IP ou qualquer texto** e tecle Enter. A busca é no **nome** do arquivo e/ou **dentro** do log, inclusive nos `.zip` de meses compactados. Marque **Regex** para buscas como `NE40-.*ERM`.
-- **De / Até** filtra por data. A data vem das pastas `Ano\Mês\Dia`, do nome do log ou da data do arquivo.
-- A lista mostra data, arquivo, host, nº de ocorrências e a primeira linha encontrada. Clique no cabeçalho para ordenar.
-- Ao clicar num resultado, aparece o log **limpo**, com as ocorrências destacadas. `F3` / `Shift+F3` (ou os botões) vão para a próxima ou a anterior.
-- **Abrir limpo** (Bloco de Notas, também com duplo clique), **Salvar limpo...**, **Abrir pasta**, **Copiar tudo**.
+### Pesquisar e comparar logs (janela)
+Dois cliques em **`Pesquisar Logs.cmd`**, ou no ícone **"Pesquisar logs Moba"**. Os ícones são criados com dois cliques em **`Criar Atalhos.cmd`**.
+
+**Pesquisar**
+- Digite um **hostname, IP ou qualquer texto** e tecle Enter. A busca é no **nome** e/ou **dentro** do log, inclusive nos `.zip` de meses compactados. Marque **Regex** para buscas como `NE40-.*ERM`.
+- **De / Até** filtra por data (pastas `Ano\Mês\Dia`, nome do log ou data do arquivo).
+- Clique num resultado para ver o log **limpo**, com as ocorrências destacadas. `F3` / `Shift+F3` navega entre elas.
+- **Abrir limpo** (Bloco de Notas, também com duplo clique), **Salvar limpo...**, **Exportar limpos...** (todos da lista, numa subpasta por equipamento: `NE40-BGP\2026-09-24_....limpo.txt`), **Abrir pasta**, **Copiar tudo**.
+
+**Comparar (o que mudou entre datas)**
+1. Pesquise o **hostname ou IP** do equipamento, para listar todos os logs dele.
+2. Escolha uma das formas:
+   - selecione **2 logs** (Ctrl+clique) e clique em **Comparar**;
+   - selecione **1 log** e clique em **Comparar com anterior**, que pega sozinho o log anterior do mesmo equipamento.
+3. Na janela de comparação, escolha **o mesmo comando** nos dois logs ou **(log inteiro)**. Ela já abre na config (`display current-configuration` / `show running-config`) se existir nos dois. Formas abreviadas são reconhecidas como o mesmo comando: `dis cur` = `display current-configuration`, `sh run` = `show running-config`, `dis int br` = `display interface brief`.
+4. O resultado mostra linhas **removidas em vermelho** (`-`) e **adicionadas em verde** (`+`), com o número da linha em A e em B.
+   - **Ignorar números** esconde mudanças de contadores, uptime e percentuais; sobra só o que mudou de estado.
+   - **Ignorar espaços** desconsidera diferenças de espaçamento.
+   - **Só as mudanças** mostra 3 linhas de contexto; desmarque para ver o texto todo.
+5. **Salvar diff...** / **Abrir no Bloco de Notas** salvam a comparação em texto.
 
 **O que a limpeza faz:** reconstrói o texto como ele apareceu na tela:
 - aplica `\r`, backspace (correções de digitação) e os comandos de cursor/apagar do terminal;

@@ -1,22 +1,28 @@
 <#
 .SYNOPSIS
-    Janela para pesquisar nos logs do MobaXterm (hostname, IP, comando, qualquer texto).
+    Janela para pesquisar e comparar os logs do MobaXterm (hostname, IP, comando, qualquer texto).
 
 .DESCRIPTION
+    PESQUISAR
     - Procura no NOME do arquivo e/ou DENTRO do log (texto ja limpo), inclusive nos .zip
-      de meses compactados pelo organizador.
-    - Filtro de datas (De / Ate). A data vem das pastas Ano\Mes\Dia, do nome do log ou
-      da data do arquivo.
+      de meses compactados pelo organizador. Filtro de datas (De / Ate).
     - Mostra o log LIMPO: sem cores/codigos de controle, com backspaces aplicados e sem
       ---- More ---- / --More-- / ---(more)---, com as ocorrencias destacadas.
-    - Abrir limpo (Bloco de Notas), Salvar limpo, Abrir pasta, Copiar.
+    - Abrir limpo (Bloco de Notas), Salvar limpo, Exportar limpos (todos da lista), Abrir pasta, Copiar.
+
+    COMPARAR (diff)
+    - Selecione 2 logs (Ctrl+clique) e clique em "Comparar", ou selecione 1 e clique em
+      "Comparar com anterior" (pega o log anterior do mesmo equipamento na lista).
+    - Escolha o mesmo comando nos dois logs (ex.: display current-configuration) ou o log inteiro.
+      "dis cur" e "display current-configuration" sao reconhecidos como o mesmo comando.
+    - Linhas removidas em vermelho, adicionadas em verde. Opcoes: ignorar numeros (contadores,
+      uptime) e espacos, mostrar so as mudancas.
+
     Atalhos: Enter = pesquisar, F3 / Shift+F3 = proxima / anterior ocorrencia,
              duplo clique no resultado = abrir limpo.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -STA -File .\Pesquisar-Logs.ps1
-.EXAMPLE
-    .\Pesquisar-Logs.ps1 -Pastas 'D:\Logs\Moba', '\\servidor\logs'
 #>
 param([string[]]$Pastas)
 
@@ -32,6 +38,100 @@ try {
     return
 }
 
+# ------------------------------------------------------------------ tema escuro
+function Cor([int]$R, [int]$G, [int]$B) { [Drawing.Color]::FromArgb($R, $G, $B) }
+$Tema = @{
+    Fundo     = Cor 24 24 27
+    Painel    = Cor 32 32 36
+    Campo     = Cor 42 42 48
+    Borda     = Cor 70 70 80
+    Texto     = Cor 232 232 236
+    Apagado   = Cor 150 150 160
+    Botao     = Cor 52 52 60
+    BotaoHover = Cor 68 68 78
+    Destaque  = Cor 0 120 212
+    DestaqueHover = Cor 30 144 235
+    Achado    = Cor 255 200 0
+    Terminal  = Cor 18 18 20
+}
+$FonteBase = New-Object Drawing.Font('Segoe UI', 11)
+$FonteTitulo = New-Object Drawing.Font('Segoe UI Semibold', 11)
+$FonteMono = New-Object Drawing.Font('Consolas', 11.5)
+
+function Pt([int]$X, [int]$Y) { New-Object Drawing.Point($X, $Y) }
+function Margem([int]$E, [int]$C, [int]$D, [int]$B) { New-Object Windows.Forms.Padding($E, $C, $D, $B) }
+
+function New-Rotulo([string]$Texto, [switch]$Apagado) {
+    $l = New-Object Windows.Forms.Label
+    $l.Text = $Texto; $l.AutoSize = $true; $l.Margin = Margem 6 10 2 0
+    $l.ForeColor = $(if ($Apagado) { $Tema.Apagado } else { $Tema.Texto })
+    return $l
+}
+
+function New-Botao([string]$Texto, [int]$Largura = 120, [switch]$Principal) {
+    $b = New-Object Windows.Forms.Button
+    $b.Text = $Texto; $b.Width = $Largura; $b.Height = 38; $b.Margin = Margem 4 3 4 3
+    $b.FlatStyle = 'Flat'; $b.Cursor = [Windows.Forms.Cursors]::Hand
+    $b.ForeColor = [Drawing.Color]::White
+    $b.BackColor = $(if ($Principal) { $Tema.Destaque } else { $Tema.Botao })
+    $b.FlatAppearance.BorderColor = $(if ($Principal) { $Tema.Destaque } else { $Tema.Borda })
+    $b.FlatAppearance.MouseOverBackColor = $(if ($Principal) { $Tema.DestaqueHover } else { $Tema.BotaoHover })
+    return $b
+}
+
+function New-Caixa([int]$Largura) {
+    $t = New-Object Windows.Forms.TextBox
+    $t.Width = $Largura; $t.Margin = Margem 4 6 4 3; $t.BorderStyle = 'FixedSingle'
+    $t.BackColor = $Tema.Campo; $t.ForeColor = $Tema.Texto
+    return $t
+}
+
+function New-Marcador([string]$Texto, [bool]$Marcado = $false) {
+    $c = New-Object Windows.Forms.CheckBox
+    $c.Text = $Texto; $c.AutoSize = $true; $c.Checked = $Marcado; $c.Margin = Margem 8 9 4 0
+    $c.ForeColor = $Tema.Texto
+    return $c
+}
+
+function New-Data {
+    $d = New-Object Windows.Forms.DateTimePicker
+    $d.Format = 'Short'; $d.Width = 140; $d.ShowCheckBox = $true; $d.Checked = $false; $d.Margin = Margem 4 6 4 3
+    $d.CalendarMonthBackground = $Tema.Campo; $d.CalendarForeColor = $Tema.Texto
+    return $d
+}
+
+function New-Linha {
+    $f = New-Object Windows.Forms.FlowLayoutPanel
+    $f.AutoSize = $true; $f.WrapContents = $false; $f.Dock = 'Fill'; $f.Margin = Margem 0 0 0 0
+    return $f
+}
+
+function New-TextoTerminal {
+    $r = New-Object Windows.Forms.RichTextBox
+    $r.Dock = 'Fill'; $r.ReadOnly = $true; $r.WordWrap = $false; $r.DetectUrls = $false; $r.HideSelection = $false
+    $r.Font = $FonteMono; $r.BackColor = $Tema.Terminal; $r.ForeColor = Cor 220 220 220; $r.BorderStyle = 'None'
+    return $r
+}
+
+function New-Barra {
+    $f = New-Object Windows.Forms.FlowLayoutPanel
+    $f.Dock = 'Top'; $f.AutoSize = $true; $f.WrapContents = $true; $f.Padding = Margem 6 4 6 4
+    $f.BackColor = $Tema.Painel
+    return $f
+}
+
+function Set-Tema($Form) {
+    $Form.BackColor = $Tema.Fundo; $Form.ForeColor = $Tema.Texto; $Form.Font = $FonteBase
+    # barra de titulo escura no Windows 10/11
+    try {
+        if (-not ('MobaTools.Janela' -as [type])) {
+            Add-Type -Namespace MobaTools -Name Janela -MemberDefinition '[DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr h, int a, ref int v, int s);'
+        }
+        $Form.Add_HandleCreated({ param($s, $e) $um = 1; [void][MobaTools.Janela]::DwmSetWindowAttribute($s.Handle, 20, [ref]$um, 4) })
+    } catch { }
+}
+
+# ------------------------------------------------------------------ estado
 $script:resultados = New-Object Collections.ArrayList
 $script:parar = $false
 $script:rx = $null
@@ -41,62 +141,77 @@ $script:indiceOc = -1
 $script:itemAtual = $null
 $script:ordem = @{ Coluna = 0; Desc = $true }
 
-function Pt([int]$X, [int]$Y) { New-Object Drawing.Point($X, $Y) }
-
-function New-Controle([string]$Tipo, [hashtable]$Props) {
-    $c = New-Object "Windows.Forms.$Tipo"
-    foreach ($k in $Props.Keys) { $c.$k = $Props[$k] }
-    return $c
-}
-
-# ------------------------------------------------------------------ janela
-$form = New-Controle Form @{ Text = 'Pesquisar logs do MobaXterm'; Size = New-Object Drawing.Size(1250, 820)
-    StartPosition = 'CenterScreen'; KeyPreview = $true; Font = New-Object Drawing.Font('Segoe UI', 9) }
+# ------------------------------------------------------------------ janela principal
+$form = New-Object Windows.Forms.Form
+$form.Text = 'Pesquisar logs do MobaXterm'
+$form.Size = New-Object Drawing.Size(1450, 920)
+$form.MinimumSize = New-Object Drawing.Size(1000, 600)
+$form.StartPosition = 'CenterScreen'; $form.KeyPreview = $true
+Set-Tema $form
 try { $form.Icon = [Drawing.Icon]::ExtractAssociatedIcon((Get-MobaConfig).MobaExe) } catch { }
 
-$topo = New-Controle Panel @{ Dock = 'Top'; Height = 76 }
-$lblBusca = New-Controle Label @{ Text = 'Procurar:'; Location = (Pt 10 14); AutoSize = $true }
-$txtBusca = New-Controle TextBox @{ Location = (Pt 75 10); Width = 330 }
-$chkRegex = New-Controle CheckBox @{ Text = 'Regex'; Location = (Pt 415 11); AutoSize = $true }
-$chkNome = New-Controle CheckBox @{ Text = 'No nome'; Location = (Pt 480 11); AutoSize = $true; Checked = $true }
-$chkConteudo = New-Controle CheckBox @{ Text = 'No conteudo'; Location = (Pt 560 11); AutoSize = $true; Checked = $true }
-$lblDe = New-Controle Label @{ Text = 'De:'; Location = (Pt 665 14); AutoSize = $true }
-$dtDe = New-Controle DateTimePicker @{ Location = (Pt 690 10); Width = 125; Format = 'Short'; ShowCheckBox = $true; Checked = $false }
-$lblAte = New-Controle Label @{ Text = 'Ate:'; Location = (Pt 822 14); AutoSize = $true }
-$dtAte = New-Controle DateTimePicker @{ Location = (Pt 850 10); Width = 125; Format = 'Short'; ShowCheckBox = $true; Checked = $false }
-$btnBuscar = New-Controle Button @{ Text = 'Pesquisar'; Location = (Pt 985 8); Width = 100; Height = 27 }
-$btnParar = New-Controle Button @{ Text = 'Parar'; Location = (Pt 1090 8); Width = 70; Height = 27; Enabled = $false }
-$lblPastas = New-Controle Label @{ Text = 'Pastas:'; Location = (Pt 10 48); AutoSize = $true }
-$txtPastas = New-Controle TextBox @{ Location = (Pt 75 44); Width = 700; Text = ($Pastas -join '; ') }
-$btnPasta = New-Controle Button @{ Text = 'Escolher pasta...'; Location = (Pt 780 42); Width = 115; Height = 27 }
-$lblStatus = New-Controle Label @{ Location = (Pt 905 48); AutoSize = $true; ForeColor = [Drawing.Color]::DimGray
-    Text = $(if ($Pastas) { 'Digite um hostname, IP ou texto e tecle Enter.' } else { 'Nenhuma pasta de logs encontrada: escolha uma.' }) }
-$txtBusca.Anchor = 'Top, Left'
-$topo.Controls.AddRange(@($lblBusca, $txtBusca, $chkRegex, $chkNome, $chkConteudo, $lblDe, $dtDe, $lblAte, $dtAte,
-    $btnBuscar, $btnParar, $lblPastas, $txtPastas, $btnPasta, $lblStatus))
+$topo = New-Object Windows.Forms.TableLayoutPanel
+$topo.Dock = 'Top'; $topo.AutoSize = $true; $topo.ColumnCount = 1; $topo.RowCount = 2
+$topo.Padding = Margem 8 8 8 6; $topo.BackColor = $Tema.Painel
 
-$split = New-Controle SplitContainer @{ Dock = 'Fill'; Orientation = 'Horizontal' }
+$l1 = New-Linha
+$txtBusca = New-Caixa 360; $txtBusca.Font = New-Object Drawing.Font('Segoe UI', 12)
+$chkRegex = New-Marcador 'Regex'
+$chkNome = New-Marcador 'No nome' $true
+$chkConteudo = New-Marcador 'No conteudo' $true
+$dtDe = New-Data; $dtAte = New-Data
+$btnBuscar = New-Botao 'Pesquisar' 130 -Principal
+$btnParar = New-Botao 'Parar' 90; $btnParar.Enabled = $false
+$l1.Controls.AddRange(@((New-Rotulo 'Procurar:'), $txtBusca, $chkRegex, $chkNome, $chkConteudo,
+    (New-Rotulo 'De:'), $dtDe, (New-Rotulo 'Ate:'), $dtAte, $btnBuscar, $btnParar))
 
-$lista = New-Controle ListView @{ Dock = 'Fill'; View = 'Details'; FullRowSelect = $true; GridLines = $true
-    HideSelection = $false; MultiSelect = $false }
-foreach ($col in @(@('Data', 85), @('Arquivo', 360), @('Host', 115), @('Ocorr.', 55), @('Primeira ocorrencia', 420), @('Local', 230))) {
+$l2 = New-Linha
+$txtPastas = New-Caixa 760; $txtPastas.Text = ($Pastas -join '; ')
+$btnPasta = New-Botao 'Escolher pasta...' 150
+$lblStatus = New-Rotulo $(if ($Pastas) { 'Digite um hostname, IP ou texto e tecle Enter.' } else { 'Nenhuma pasta de logs encontrada: escolha uma.' }) -Apagado
+$l2.Controls.AddRange(@((New-Rotulo 'Pastas:'), $txtPastas, $btnPasta, $lblStatus))
+
+$topo.Controls.Add($l1, 0, 0); $topo.Controls.Add($l2, 0, 1)
+
+$split = New-Object Windows.Forms.SplitContainer
+$split.Dock = 'Fill'; $split.Orientation = 'Horizontal'; $split.BackColor = $Tema.Borda; $split.SplitterWidth = 5
+$split.Panel1.BackColor = $Tema.Fundo; $split.Panel2.BackColor = $Tema.Fundo
+
+$lista = New-Object Windows.Forms.ListView
+$lista.Dock = 'Fill'; $lista.View = 'Details'; $lista.FullRowSelect = $true; $lista.HideSelection = $false
+$lista.MultiSelect = $true; $lista.BorderStyle = 'None'; $lista.OwnerDraw = $true
+$lista.BackColor = $Tema.Painel; $lista.ForeColor = $Tema.Texto
+foreach ($col in @(@('Data', 105), @('Arquivo', 400), @('Host', 140), @('Ocorr.', 70), @('Primeira ocorrencia', 460), @('Local', 240))) {
     [void]$lista.Columns.Add($col[0], $col[1])
 }
+$pincelCabecalho = New-Object Drawing.SolidBrush($Tema.Campo)
+$canetaBorda = New-Object Drawing.Pen($Tema.Borda)
+$lista.Add_DrawColumnHeader({
+    param($s, $e)
+    $e.Graphics.FillRectangle($pincelCabecalho, $e.Bounds)
+    $e.Graphics.DrawLine($canetaBorda, $e.Bounds.Right - 1, $e.Bounds.Top + 4, $e.Bounds.Right - 1, $e.Bounds.Bottom - 4)
+    $r = New-Object Drawing.Rectangle(($e.Bounds.X + 8), $e.Bounds.Y, ($e.Bounds.Width - 10), $e.Bounds.Height)
+    [Windows.Forms.TextRenderer]::DrawText($e.Graphics, $e.Header.Text, $FonteTitulo, $r, $Tema.Texto,
+        [Windows.Forms.TextFormatFlags]'VerticalCenter, Left, EndEllipsis')
+})
+$lista.Add_DrawItem({ param($s, $e) $e.DrawDefault = $true })
+$lista.Add_DrawSubItem({ param($s, $e) $e.DrawDefault = $true })
 $split.Panel1.Controls.Add($lista)
 
-$barra = New-Controle FlowLayoutPanel @{ Dock = 'Top'; Height = 34; Padding = New-Object Windows.Forms.Padding(4) }
-$btnAnt = New-Controle Button @{ Text = '< Anterior'; Width = 85 }
-$btnProx = New-Controle Button @{ Text = 'Proxima >'; Width = 85 }
-$lblOc = New-Controle Label @{ AutoSize = $true; Padding = New-Object Windows.Forms.Padding(4, 6, 12, 0) }
-$btnAbrir = New-Controle Button @{ Text = 'Abrir limpo'; Width = 95 }
-$btnSalvar = New-Controle Button @{ Text = 'Salvar limpo...'; Width = 105 }
-$btnAbrirPasta = New-Controle Button @{ Text = 'Abrir pasta'; Width = 90 }
-$btnCopiar = New-Controle Button @{ Text = 'Copiar tudo'; Width = 90 }
-$barra.Controls.AddRange(@($btnAnt, $btnProx, $lblOc, $btnAbrir, $btnSalvar, $btnAbrirPasta, $btnCopiar))
+$barra = New-Barra
+$btnAnt = New-Botao '<  Anterior' 110
+$btnProx = New-Botao 'Proxima  >' 110
+$lblOc = New-Rotulo '' -Apagado; $lblOc.Margin = Margem 8 12 16 0
+$btnComparar = New-Botao 'Comparar' 110 -Principal
+$btnAnterior = New-Botao 'Comparar com anterior' 190
+$btnAbrir = New-Botao 'Abrir limpo' 115
+$btnSalvar = New-Botao 'Salvar limpo...' 135
+$btnExportar = New-Botao 'Exportar limpos...' 155
+$btnAbrirPasta = New-Botao 'Abrir pasta' 115
+$btnCopiar = New-Botao 'Copiar tudo' 115
+$barra.Controls.AddRange(@($btnAnt, $btnProx, $lblOc, $btnComparar, $btnAnterior, $btnAbrir, $btnSalvar, $btnExportar, $btnAbrirPasta, $btnCopiar))
 
-$texto = New-Controle RichTextBox @{ Dock = 'Fill'; ReadOnly = $true; WordWrap = $false; DetectUrls = $false
-    HideSelection = $false; Font = New-Object Drawing.Font('Consolas', 10)
-    BackColor = [Drawing.Color]::FromArgb(30, 30, 30); ForeColor = [Drawing.Color]::FromArgb(220, 220, 220) }
+$texto = New-TextoTerminal
 $split.Panel2.Controls.Add($texto)
 $split.Panel2.Controls.Add($barra)
 
@@ -105,6 +220,8 @@ $form.Controls.Add($topo)
 $form.AcceptButton = $btnBuscar
 
 # ------------------------------------------------------------------ funcoes
+function Show-Aviso([string]$Msg) { [Windows.Forms.MessageBox]::Show($Msg, 'Pesquisar logs') | Out-Null }
+
 function Set-Ocupado([bool]$Ocupado) {
     $btnBuscar.Enabled = -not $Ocupado
     $btnParar.Enabled = $Ocupado
@@ -140,11 +257,11 @@ function Start-Pesquisa {
     if (-not $busca) { $txtBusca.Focus(); return }
     if (-not $chkNome.Checked -and -not $chkConteudo.Checked) { $chkConteudo.Checked = $true }
     try { $script:rx = New-MobaLogRegex -Texto $busca -Regex:$chkRegex.Checked }
-    catch { [Windows.Forms.MessageBox]::Show("Regex invalida: $($_.Exception.InnerException.Message)", 'Pesquisar logs') | Out-Null; return }
+    catch { Show-Aviso "Regex invalida: $($_.Exception.InnerException.Message)"; return }
 
     $pastas = @($txtPastas.Text -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
     $script:resultados.Clear(); $lista.Items.Clear(); $texto.Clear(); $lblOc.Text = ''
-    $script:parar = $false
+    $script:itemAtual = $null; $script:parar = $false
     Set-Ocupado $true
     $relogio = [Diagnostics.Stopwatch]::StartNew()
     try {
@@ -182,10 +299,9 @@ function Show-Log($r) {
     $script:indiceOc = -1
     if ($script:rx) {
         $script:ocorrencias = @($script:rx.Matches($texto.Text))
-        $destaque = [Drawing.Color]::FromArgb(255, 200, 0)
         foreach ($m in ($script:ocorrencias | Select-Object -First 500)) {
             $texto.Select($m.Index, $m.Length)
-            $texto.SelectionBackColor = $destaque
+            $texto.SelectionBackColor = $Tema.Achado
             $texto.SelectionColor = [Drawing.Color]::Black
         }
     }
@@ -204,12 +320,167 @@ function Move-Ocorrencia([int]$Passo) {
     $lblOc.Text = "Ocorrencia $($script:indiceOc + 1) de $total - linha $linha$extra"
 }
 
-function Get-NomeLimpo {
-    return [IO.Path]::GetFileNameWithoutExtension($script:itemAtual.Nome) + '.limpo.txt'
+function Get-NomeLimpo($r) { [IO.Path]::GetFileNameWithoutExtension($r.Nome) + '.limpo.txt' }
+
+function Save-Texto([string]$Destino, [string]$Conteudo) {
+    [IO.File]::WriteAllText($Destino, $Conteudo, (New-Object Text.UTF8Encoding($true)))
 }
 
-function Save-Limpo([string]$Destino) {
-    [IO.File]::WriteAllText($Destino, $script:textoAtual, (New-Object Text.UTF8Encoding($true)))
+function Open-NoBloco([string]$Nome, [string]$Conteudo) {
+    $pasta = Join-Path $env:TEMP 'MobaLogs'
+    New-Item -ItemType Directory -Path $pasta -Force | Out-Null
+    $arq = Join-Path $pasta $Nome
+    Save-Texto $arq $Conteudo
+    Start-Process notepad.exe -ArgumentList ('"{0}"' -f $arq)
+}
+
+function Export-Limpos {
+    if (-not $script:resultados.Count) { Show-Aviso 'Pesquise primeiro: sao exportados os logs da lista.'; return }
+    $dlg = New-Object Windows.Forms.FolderBrowserDialog
+    $dlg.Description = 'Pasta para salvar os logs limpos (uma subpasta por equipamento)'
+    if ($dlg.ShowDialog() -ne 'OK') { return }
+    Set-Ocupado $true
+    $n = 0
+    try {
+        foreach ($r in $script:resultados) {
+            $n++; $lblStatus.Text = "Exportando $n de $($script:resultados.Count)..."; [Windows.Forms.Application]::DoEvents()
+            $equip = (Get-MobaLogChaveEquipamento $r) -replace '[\\/:*?"<>|]', '_'
+            if (-not $equip) { $equip = 'sem-nome' }
+            $pasta = Join-Path $dlg.SelectedPath $equip
+            New-Item -ItemType Directory -Path $pasta -Force | Out-Null
+            Save-Texto (Join-Path $pasta ('{0:yyyy-MM-dd}_{1}' -f $r.Data, (Get-NomeLimpo $r))) (Read-MobaLog $r)
+        }
+        $lblStatus.Text = "$n log(s) limpos exportados para $($dlg.SelectedPath)"
+        Start-Process explorer.exe -ArgumentList ('"{0}"' -f $dlg.SelectedPath)
+    } catch { $lblStatus.Text = "Erro ao exportar: $_" } finally { Set-Ocupado $false }
+}
+
+function Find-LogAnterior($r) {
+    $chave = Get-MobaLogChaveEquipamento $r
+    return $script:resultados |
+        Where-Object { $_ -ne $r -and (Get-MobaLogChaveEquipamento $_) -eq $chave -and
+            ($_.Data -lt $r.Data -or ($_.Data -eq $r.Data -and $_.Nome -lt $r.Nome)) } |
+        Sort-Object Data, Nome | Select-Object -Last 1
+}
+
+# ------------------------------------------------------------------ janela de comparacao
+# Estado da janela de comparacao aberta (ela e modal: uma por vez)
+$script:cmp = $null
+
+function New-Combo {
+    $c = New-Object Windows.Forms.ComboBox
+    $c.DropDownStyle = 'DropDownList'; $c.Width = 560; $c.Margin = Margem 4 5 4 3
+    $c.BackColor = $Tema.Campo; $c.ForeColor = $Tema.Texto; $c.FlatStyle = 'Flat'; $c.MaxDropDownItems = 25
+    return $c
+}
+
+function Invoke-Comparar {
+    $c = $script:cmp
+    $ta = if ($c.CmbA.SelectedItem -is [MobaBloco]) { $c.CmbA.SelectedItem.Texto } else { $c.TextoA }
+    $tb = if ($c.CmbB.SelectedItem -is [MobaBloco]) { $c.CmbB.SelectedItem.Texto } else { $c.TextoB }
+    $c.Form.Cursor = [Windows.Forms.Cursors]::WaitCursor
+    try {
+        $r = Compare-MobaLog $ta $tb -IgnorarNumeros:$c.ChkNum.Checked -IgnorarEspacos:$c.ChkEsp.Checked
+        $vis = [MobaDiff]::Visiveis($r.Linhas, $(if ($c.ChkSo.Checked) { 3 } else { -1 }))
+        if ($r.Adicionadas + $r.Removidas -eq 0) {
+            $c.Saida.Text = "`r`n   Nenhuma diferenca.`r`n"
+            $c.Resultado.Text = 'Iguais'
+        } else {
+            $c.Saida.Rtf = [MobaDiff]::ParaRtf($vis)
+            $c.Resultado.Text = "+$($r.Adicionadas) adicionada(s)    -$($r.Removidas) removida(s)"
+        }
+        $cab = "A: {0:dd/MM/yyyy} {1} [{2}]`r`nB: {3:dd/MM/yyyy} {4} [{5}]`r`n+{6} / -{7}`r`n`r`n" -f `
+            $c.A.Data, $c.A.Nome, $c.CmbA.Text, $c.B.Data, $c.B.Nome, $c.CmbB.Text, $r.Adicionadas, $r.Removidas
+        $c.Texto = $cab + [MobaDiff]::ParaTexto($vis)
+    } catch {
+        $c.Saida.Text = "Erro: $($_.Exception.Message)"
+        $c.Resultado.Text = ''
+    } finally { $c.Form.Cursor = [Windows.Forms.Cursors]::Default }
+}
+
+function Select-MesmoComandoEmB {
+    # escolher um comando em A seleciona o mesmo comando em B (ultima ocorrencia)
+    $c = $script:cmp
+    if ($c.CmbA.SelectedItem -is [MobaBloco]) {
+        $chave = $c.CmbA.SelectedItem.Chave
+        for ($i = $c.CmbB.Items.Count - 1; $i -ge 1; $i--) {
+            if ($c.CmbB.Items[$i].Chave -eq $chave) { $c.CmbB.SelectedIndex = $i; return }
+        }
+    } else { $c.CmbB.SelectedIndex = 0 }
+}
+
+function Get-NomeDiff { 'diff_{0:yyyy-MM-dd}_x_{1:yyyy-MM-dd}.txt' -f $script:cmp.A.Data, $script:cmp.B.Data }
+
+function Show-Comparacao($A, $B) {
+    # A = mais antigo, B = mais novo
+    if ($A.Data -gt $B.Data -or ($A.Data -eq $B.Data -and $A.Nome -gt $B.Nome)) { $t = $A; $A = $B; $B = $t }
+    try { $textoA = Read-MobaLog $A; $textoB = Read-MobaLog $B } catch { Show-Aviso "Nao foi possivel ler: $_"; return }
+    $blocosA = Get-MobaLogBlocos $textoA
+    $blocosB = Get-MobaLogBlocos $textoB
+
+    $f = New-Object Windows.Forms.Form
+    $f.Text = "Comparar:  $($A.Nome)   x   $($B.Nome)"
+    $f.Size = New-Object Drawing.Size(1400, 900); $f.StartPosition = 'CenterParent'
+    Set-Tema $f
+
+    $cab = New-Object Windows.Forms.TableLayoutPanel
+    $cab.Dock = 'Top'; $cab.AutoSize = $true; $cab.ColumnCount = 1; $cab.RowCount = 3
+    $cab.Padding = Margem 8 8 8 6; $cab.BackColor = $Tema.Painel
+
+    $cmbA = New-Combo; $cmbB = New-Combo
+    [void]$cmbA.Items.Add('(log inteiro)'); foreach ($x in $blocosA) { [void]$cmbA.Items.Add($x) }
+    [void]$cmbB.Items.Add('(log inteiro)'); foreach ($x in $blocosB) { [void]$cmbB.Items.Add($x) }
+
+    $la = New-Linha
+    $rotA = New-Rotulo ('A  (antes)   {0:dd/MM/yyyy}' -f $A.Data); $rotA.ForeColor = Cor 255 120 120; $rotA.Width = 210; $rotA.AutoSize = $false
+    $la.Controls.AddRange(@($rotA, $cmbA, (New-Rotulo $A.Nome -Apagado)))
+    $lb = New-Linha
+    $rotB = New-Rotulo ('B  (depois)  {0:dd/MM/yyyy}' -f $B.Data); $rotB.ForeColor = Cor 120 230 120; $rotB.Width = 210; $rotB.AutoSize = $false
+    $lb.Controls.AddRange(@($rotB, $cmbB, (New-Rotulo $B.Nome -Apagado)))
+
+    $lo = New-Linha
+    $chkNum = New-Marcador 'Ignorar numeros (contadores, uptime)'
+    $chkEsp = New-Marcador 'Ignorar espacos'
+    $chkSo = New-Marcador 'So as mudancas' $true
+    $btnCmp = New-Botao 'Comparar' 120 -Principal
+    $btnSalvarDiff = New-Botao 'Salvar diff...' 130
+    $btnBlocoDiff = New-Botao 'Abrir no Bloco de Notas' 210
+    $lblRes = New-Rotulo '' ; $lblRes.Font = $FonteTitulo
+    $lo.Controls.AddRange(@($chkNum, $chkEsp, $chkSo, $btnCmp, $btnSalvarDiff, $btnBlocoDiff, $lblRes))
+
+    $cab.Controls.Add($la, 0, 0); $cab.Controls.Add($lb, 0, 1); $cab.Controls.Add($lo, 0, 2)
+    $saida = New-TextoTerminal
+    $f.Controls.Add($saida)
+    $f.Controls.Add($cab)
+
+    $script:cmp = @{ A = $A; B = $B; TextoA = $textoA; TextoB = $textoB; CmbA = $cmbA; CmbB = $cmbB
+        ChkNum = $chkNum; ChkEsp = $chkEsp; ChkSo = $chkSo; Saida = $saida; Resultado = $lblRes; Form = $f; Texto = '' }
+
+    $cmbA.Add_SelectedIndexChanged({ Select-MesmoComandoEmB })
+
+    # padrao: a config se existir nos dois; senao o ultimo comando em comum; senao o log inteiro
+    $chavesB = @($blocosB | ForEach-Object { $_.Chave })
+    $comuns = @($blocosA | Where-Object { $chavesB -contains $_.Chave })
+    $preferido = $comuns | Where-Object { $_.Chave -match 'current-configuration|running-config|configuration' } | Select-Object -Last 1
+    if (-not $preferido) { $preferido = $comuns | Select-Object -Last 1 }
+    $cmbA.SelectedIndex = $(if ($preferido) { $cmbA.Items.IndexOf($preferido) } else { 0 })
+    if ($cmbB.SelectedIndex -lt 0) { $cmbB.SelectedIndex = 0 }
+
+    $btnCmp.Add_Click({ Invoke-Comparar })
+    $chkNum.Add_CheckedChanged({ Invoke-Comparar })
+    $chkEsp.Add_CheckedChanged({ Invoke-Comparar })
+    $chkSo.Add_CheckedChanged({ Invoke-Comparar })
+    $btnSalvarDiff.Add_Click({
+        $dlg = New-Object Windows.Forms.SaveFileDialog
+        $dlg.FileName = Get-NomeDiff
+        $dlg.Filter = 'Texto (*.txt)|*.txt|Todos (*.*)|*.*'
+        if ($dlg.ShowDialog() -eq 'OK') { Save-Texto $dlg.FileName $script:cmp.Texto }
+    })
+    $btnBlocoDiff.Add_Click({ Open-NoBloco (Get-NomeDiff) $script:cmp.Texto })
+    $f.Add_Shown({ Invoke-Comparar })
+    [void]$f.ShowDialog($form)
+    $f.Dispose()
+    $script:cmp = $null
 }
 
 # ------------------------------------------------------------------ eventos
@@ -220,7 +491,11 @@ $btnPasta.Add_Click({
     $dlg.Description = 'Pasta com os logs do MobaXterm'
     if ($dlg.ShowDialog() -eq 'OK') { $txtPastas.Text = $dlg.SelectedPath; $lblStatus.Text = 'Pasta escolhida. Tecle Enter para pesquisar.' }
 })
-$lista.Add_SelectedIndexChanged({ if ($lista.SelectedItems.Count -eq 1) { Show-Log $lista.SelectedItems[0].Tag } })
+$lista.Add_SelectedIndexChanged({
+    $n = $lista.SelectedItems.Count
+    if ($n -eq 1) { Show-Log $lista.SelectedItems[0].Tag }
+    elseif ($n -eq 2) { $lblOc.Text = '2 logs selecionados: clique em Comparar' }
+})
 $lista.Add_DoubleClick({ $btnAbrir.PerformClick() })
 $lista.Add_ColumnClick({
     param($s, $e)
@@ -230,21 +505,25 @@ $lista.Add_ColumnClick({
 })
 $btnProx.Add_Click({ Move-Ocorrencia 1 })
 $btnAnt.Add_Click({ Move-Ocorrencia -1 })
-$btnAbrir.Add_Click({
-    if (-not $script:itemAtual) { return }
-    $pasta = Join-Path $env:TEMP 'MobaLogs'
-    New-Item -ItemType Directory -Path $pasta -Force | Out-Null
-    $arq = Join-Path $pasta (Get-NomeLimpo)
-    Save-Limpo $arq
-    Start-Process notepad.exe -ArgumentList ('"{0}"' -f $arq)
+$btnComparar.Add_Click({
+    if ($lista.SelectedItems.Count -ne 2) { Show-Aviso 'Selecione 2 logs na lista (Ctrl+clique) para comparar, ou use "Comparar com anterior".'; return }
+    Show-Comparacao $lista.SelectedItems[0].Tag $lista.SelectedItems[1].Tag
 })
+$btnAnterior.Add_Click({
+    if (-not $script:itemAtual) { Show-Aviso 'Selecione um log na lista.'; return }
+    $ant = Find-LogAnterior $script:itemAtual
+    if (-not $ant) { Show-Aviso "Nao ha log anterior desse equipamento na lista.`nPesquise pelo hostname ou IP para listar todos os logs dele."; return }
+    Show-Comparacao $ant $script:itemAtual
+})
+$btnAbrir.Add_Click({ if ($script:itemAtual) { Open-NoBloco (Get-NomeLimpo $script:itemAtual) $script:textoAtual } })
 $btnSalvar.Add_Click({
     if (-not $script:itemAtual) { return }
     $dlg = New-Object Windows.Forms.SaveFileDialog
-    $dlg.FileName = Get-NomeLimpo
+    $dlg.FileName = Get-NomeLimpo $script:itemAtual
     $dlg.Filter = 'Texto (*.txt)|*.txt|Todos (*.*)|*.*'
-    if ($dlg.ShowDialog() -eq 'OK') { Save-Limpo $dlg.FileName; $lblStatus.Text = "Salvo: $($dlg.FileName)" }
+    if ($dlg.ShowDialog() -eq 'OK') { Save-Texto $dlg.FileName $script:textoAtual; $lblStatus.Text = "Salvo: $($dlg.FileName)" }
 })
+$btnExportar.Add_Click({ Export-Limpos })
 $btnAbrirPasta.Add_Click({
     if (-not $script:itemAtual) { return }
     Start-Process explorer.exe -ArgumentList ('/select,"{0}"' -f $script:itemAtual.Caminho)
@@ -254,7 +533,7 @@ $form.Add_KeyDown({
     param($s, $e)
     if ($e.KeyCode -eq 'F3') { Move-Ocorrencia $(if ($e.Shift) { -1 } else { 1 }); $e.Handled = $true }
 })
-$form.Add_Shown({ $split.SplitterDistance = 260; $txtBusca.Focus() })
+$form.Add_Shown({ $split.SplitterDistance = 300; $txtBusca.Focus() })
 
 [void]$form.ShowDialog()
 $form.Dispose()
