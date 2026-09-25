@@ -17,6 +17,7 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 Persistent
+SetTitleMatchMode "RegEx"      ; necessario para "ahk_exe i)^MobaXterm.*\.exe$" (portable ou instalado)
 
 ; ---------------------------------------------------------------- ajustes
 IntervaloSeg   := 240                    ; menor que o timeout do equipamento (ex.: 5 min -> 240 s)
@@ -118,7 +119,7 @@ ListarJanelas(*) {
         }
     }
     MsgBox txt = "" ? "Nenhuma janela do MobaXterm aberta." : "[X] = recebe o anti-idle`n`n" txt
-        . "`nPara incluir outra classe, edite ClassesAlvo no inicio do script (ex.: ""i)^TMobaXterm|^TOutraClasse"").",
+        . "`nPara incluir outra classe, edite ClassesAlvo no inicio do script (ex.: `"i)^TMobaXterm|^TOutraClasse`").",
         "Moba Anti-Idle - janelas"
 }
 
