@@ -345,6 +345,20 @@ O `not port 2288` tira o próprio SSH da captura.
 
 ## 6. Melhorias que valem a pena no MobaXterm
 
+**Terminal features recomendadas para redes** (*Settings > Terminal*, ou em cada sessão *Terminal settings*):
+
+| Opção | Recomendação | Por quê |
+|---|---|---|
+| Flush log files frequently | **Ligar** | Grava o log na hora: não perde o final se o PC travar ou a sessão cair, e o `Pesquisar Logs` vê o que acabou de acontecer |
+| Enable bracketed paste | **Desligar** | Cisco/Huawei/Juniper não entendem os códigos de "colagem"; aparece `^[[200~` no começo da config colada |
+| Enable scrollback clearing | **Desligar** | Um `clear` ou o equipamento não apagam seu histórico da tela |
+| Local echo / Local line editing | Desligados | Os equipamentos já ecoam; edição local quebra `Tab` e `?` do CLI |
+| Paste delay (Copy/paste settings) | ~10 a 50 ms | Colar config grande (principalmente por console) sem o equipamento perder linhas |
+| Aviso ao colar várias linhas | Ligar | Evita colar config no equipamento errado |
+| Implicit CR/LF | Só se precisar | Ligue apenas se um equipamento (console serial) mostrar texto "em escada" |
+| Ctrl+Alt is different from AltGr | Desligado | No teclado ABNT2 o AltGr é usado para `/`, `?` e `°` |
+
+
 **Produtividade**
 - **MultiExec** (botão na barra): digita o mesmo comando em vários equipamentos ao mesmo tempo (ex.: `display bgp peer` em todos os NE).
 - **Macros** (*Tools > Macros*): grave sequências (`screen-length 0 temporary`, `terminal length 0`, `set cli screen-length 0`) e rode com um clique ou `MobaXterm.exe -runmacro "nome"`.
