@@ -45,23 +45,6 @@ function Write-Historico([string]$Mensagem) {
     if (-not $WhatIfPreference) { Add-Content -LiteralPath $ArquivoHistorico -Value $linha -Encoding UTF8 }
 }
 
-function Get-DataDoLog([IO.FileInfo]$Arquivo) {
-    # Usa a ULTIMA data do nome: no formato do Moba (&S-&U-[@&H]&P-(&T)) o horario (&T)
-    # vem no fim, depois de host/IP/porta.
-    # 1) 20260924, 2026-09-24, 2026_09_24, 2026.09.24
-    $m = [regex]::Matches($Arquivo.BaseName, '(?<!\d)(20\d{2})[-_.]?(0[1-9]|1[0-2])[-_.]?(0[1-9]|[12]\d|3[01])(?!\d)')
-    for ($i = $m.Count - 1; $i -ge 0; $i--) {
-        try { return [datetime]::new([int]$m[$i].Groups[1].Value, [int]$m[$i].Groups[2].Value, [int]$m[$i].Groups[3].Value) } catch { }
-    }
-    # 2) 24-09-2026 / 24.09.2026 (formato brasileiro)
-    $m = [regex]::Matches($Arquivo.BaseName, '(?<!\d)(0[1-9]|[12]\d|3[01])[-_.](0[1-9]|1[0-2])[-_.](20\d{2})(?!\d)')
-    for ($i = $m.Count - 1; $i -ge 0; $i--) {
-        try { return [datetime]::new([int]$m[$i].Groups[3].Value, [int]$m[$i].Groups[2].Value, [int]$m[$i].Groups[1].Value) } catch { }
-    }
-    # 3) data de alteracao do arquivo
-    return $Arquivo.LastWriteTime
-}
-
 function Test-ArquivoEmUso([IO.FileInfo]$Arquivo) {
     try {
         $fs = [IO.File]::Open($Arquivo.FullName, 'Open', 'ReadWrite', 'None')
@@ -93,7 +76,7 @@ $movidos = 0; $pulados = 0
 foreach ($arq in $arquivos) {
     if ($arq.LastWriteTime -gt $limite -or (Test-ArquivoEmUso $arq)) { $pulados++; continue }
 
-    $data = Get-DataDoLog $arq
+    $data = Get-DataDoLog -Nome $arq.BaseName -DataArquivo $arq.LastWriteTime
     $pasta = [IO.Path]::Combine($cfg.PastaDestino, $data.ToString('yyyy'), ('{0:D2}-{1}' -f $data.Month, $Meses[$data.Month - 1]), $data.ToString('dd'))
     $alvo = Get-CaminhoLivre (Join-Path $pasta $arq.Name)
 

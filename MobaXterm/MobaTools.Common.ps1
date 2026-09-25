@@ -69,3 +69,24 @@ function Get-MobaPastaLogs {
     if (-not $valor) { throw "LogFolder nao definido em $ini. Ative o log em Settings > Terminal ou preencha PastaLogs no config.psd1." }
     return Resolve-MobaCaminho -Caminho $valor -Ini $ini -MobaExe $Cfg.MobaExe
 }
+
+function Get-DataDoLog {
+    # Data de um log, na ordem:
+    #   1) pastas do organizador no caminho: ...\2026\09-Setembro\24\arquivo.log
+    #   2) ULTIMA data no nome (no formato do Moba o horario &T vem no fim, depois de host/IP/porta):
+    #      20260924, 2026-09-24, 2026_09_24, 2026.09.24 ou 24-09-2026 / 24.09.2026
+    #   3) data de alteracao do arquivo
+    param([string]$Nome, [string]$Caminho, [datetime]$DataArquivo)
+    if ($Caminho -and $Caminho -match '[\\/](20\d{2})[\\/](0[1-9]|1[0-2])-[^\\/]*[\\/](0[1-9]|[12]\d|3[01])[\\/]') {
+        try { return [datetime]::new([int]$Matches[1], [int]$Matches[2], [int]$Matches[3]) } catch { }
+    }
+    $m = [regex]::Matches($Nome, '(?<!\d)(20\d{2})[-_.]?(0[1-9]|1[0-2])[-_.]?(0[1-9]|[12]\d|3[01])(?!\d)')
+    for ($i = $m.Count - 1; $i -ge 0; $i--) {
+        try { return [datetime]::new([int]$m[$i].Groups[1].Value, [int]$m[$i].Groups[2].Value, [int]$m[$i].Groups[3].Value) } catch { }
+    }
+    $m = [regex]::Matches($Nome, '(?<!\d)(0[1-9]|[12]\d|3[01])[-_.](0[1-9]|1[0-2])[-_.](20\d{2})(?!\d)')
+    for ($i = $m.Count - 1; $i -ge 0; $i--) {
+        try { return [datetime]::new([int]$m[$i].Groups[3].Value, [int]$m[$i].Groups[2].Value, [int]$m[$i].Groups[1].Value) } catch { }
+    }
+    return $DataArquivo
+}

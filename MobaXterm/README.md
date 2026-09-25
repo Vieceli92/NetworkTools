@@ -15,6 +15,7 @@ Scripts PowerShell (Windows PowerShell 5.1 ou PowerShell 7) para:
 |---|---|
 | `config.psd1` | **Única coisa que você edita**: caminho do Moba, pasta de logs, retenção etc. |
 | `Organizar-LogsMoba.ps1` | Move os logs para `2026\09-Setembro\24\...` |
+| `Pesquisar-Logs.ps1` + `MobaLogBusca.ps1` | **Janela de busca nos logs** (hostname, IP, texto), com prévia do log limpo |
 | `Iniciar-MobaXterm.ps1` | Organiza os logs → abre o Moba → organiza de novo quando o Moba fecha |
 | `Instalar-MobaTools.ps1` | Cria o atalho **"MobaXterm (logs)"** e (opcional) uma tarefa agendada |
 | `Configurar-SyncOneDrive.ps1` | Coloca o `MobaXterm.ini` (sessões) no OneDrive |
@@ -42,6 +43,7 @@ Sempre com o **MobaXterm fechado**, inclusive o ícone perto do relógio.
    .\Instalar-SyntaxRedes.ps1                  # cores
    ```
 3. Abra o Moba pelo atalho **"MobaXterm (logs)"** e escolha o perfil em *Settings > Terminal > Syntax highlighting*.
+4. Para achar um log antigo: ícone **"Pesquisar logs Moba"** (rode `.\Instalar-MobaTools.ps1` de novo se ele ainda não existir).
 
 **PC de casa**
 1. Espere o OneDrive sincronizar a pasta `Documents\MobaXterm` e marque **"Sempre manter neste dispositivo"**.
@@ -88,6 +90,24 @@ Log\
 │  └─ 09-Setembro\24\SONIC-...-(2026-09-24_17-02-10).log
 └─ SESSAO-ABERTA-....log                  ← em uso: fica aqui até fechar
 ```
+
+### Pesquisar nos logs (janela)
+Ícone **"Pesquisar logs Moba"** na Área de Trabalho (criado pelo `Instalar-MobaTools.ps1`), ou:
+```powershell
+powershell -ExecutionPolicy Bypass -STA -File .\Pesquisar-Logs.ps1
+```
+- Digite um **hostname, IP ou qualquer texto** e tecle Enter. A busca é no **nome** do arquivo e/ou **dentro** do log, inclusive nos `.zip` de meses compactados. Marque **Regex** para buscas como `NE40-.*ERM`.
+- **De / Até** filtra por data. A data vem das pastas `Ano\Mês\Dia`, do nome do log ou da data do arquivo.
+- A lista mostra data, arquivo, host, nº de ocorrências e a primeira linha encontrada. Clique no cabeçalho para ordenar.
+- Ao clicar num resultado, aparece o log **limpo**, com as ocorrências destacadas. `F3` / `Shift+F3` (ou os botões) vão para a próxima ou a anterior.
+- **Abrir limpo** (Bloco de Notas, também com duplo clique), **Salvar limpo...**, **Abrir pasta**, **Copiar tudo**.
+
+**O que a limpeza faz:** reconstrói o texto como ele apareceu na tela:
+- aplica `\r`, backspace (correções de digitação) e os comandos de cursor/apagar do terminal;
+- remove cores e códigos de controle;
+- tira os restos de paginação: `---- More ----` (Huawei), `--More--` (Cisco), `---(more)---` (Juniper).
+
+O arquivo original nunca é alterado. O limpo vai para `%TEMP%\MobaLogs` ou para onde você salvar.
 
 ### Formato do nome do log
 `.\Ajustar-MobaIni.ps1` (com o Moba fechado) faz estes ajustes:
