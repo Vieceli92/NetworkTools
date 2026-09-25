@@ -123,16 +123,39 @@ function Get-MobaLogPastasPadrao {
     return @($pastas | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Sort-Object -Unique)
 }
 
+function Get-MobaLogPastasUnicas([string[]]$Pastas) {
+    # Remove pastas repetidas (C:\Log e c:\log\ sao a mesma) e subpastas de outra pasta da
+    # lista: senao os mesmos arquivos seriam lidos mais de uma vez
+    $cheias = @($Pastas | Where-Object { $_ -and (Test-Path -LiteralPath $_) } |
+        ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\', '/') } | Sort-Object Length -Unique)
+    $unicas = New-Object Collections.Generic.List[string]
+    foreach ($p in $cheias) {
+        $dentro = $false
+        foreach ($u in $unicas) {
+            if ($p.Equals($u, [StringComparison]::OrdinalIgnoreCase) -or
+                $p.StartsWith($u + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or
+                $p.StartsWith($u + '/', [StringComparison]::OrdinalIgnoreCase)) { $dentro = $true; break }
+        }
+        if (-not $dentro) { $unicas.Add($p) }
+    }
+    return $unicas
+}
+
+function Test-MobaLogIgnorado([string]$Nome) {
+    # Arquivos gerados pelas ferramentas (historico do organizador, logs limpos e diffs exportados)
+    return ($Nome -eq '_organizador.log' -or $Nome -like '*.limpo.txt' -or $Nome -like 'diff_*.txt')
+}
+
 function Get-MobaLogArquivos {
     # Lista os logs (.log/.txt), inclusive dentro dos .zip de meses compactados.
     # Cada item: Data, Nome, Host, Caminho, Entrada (nome dentro do zip ou $null), Tamanho
     param([string[]]$Pastas, [string[]]$Extensoes = @('.log', '.txt'))
     try { Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction Stop } catch { }
-    foreach ($pasta in $Pastas) {
-        if (-not (Test-Path -LiteralPath $pasta)) { continue }
+    foreach ($pasta in (Get-MobaLogPastasUnicas $Pastas)) {
         foreach ($f in Get-ChildItem -LiteralPath $pasta -Recurse -File -ErrorAction SilentlyContinue) {
             $ext = $f.Extension.ToLower()
-            if ($Extensoes -contains $ext -and $f.Name -ne '_organizador.log') {
+            if (Test-MobaLogIgnorado $f.Name) { continue }
+            if ($Extensoes -contains $ext) {
                 [pscustomobject]@{
                     Data = Get-DataDoLog -Nome $f.BaseName -Caminho $f.FullName -DataArquivo $f.LastWriteTime
                     Nome = $f.Name; Host = Get-MobaLogHost $f.BaseName
@@ -145,6 +168,7 @@ function Get-MobaLogArquivos {
                         $base = $f.FullName.Substring(0, $f.FullName.Length - 4)    # ...\2026\03-Marco
                         foreach ($e in $zip.Entries) {
                             if ($Extensoes -notcontains [IO.Path]::GetExtension($e.Name).ToLower()) { continue }
+                            if (Test-MobaLogIgnorado $e.Name) { continue }
                             $nomeBase = [IO.Path]::GetFileNameWithoutExtension($e.Name)
                             [pscustomobject]@{
                                 Data = Get-DataDoLog -Nome $nomeBase -Caminho ($base + '\' + ($e.FullName -replace '/', '\')) -DataArquivo $e.LastWriteTime.DateTime
