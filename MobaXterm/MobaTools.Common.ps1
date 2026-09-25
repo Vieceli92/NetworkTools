@@ -10,7 +10,40 @@ function Get-MobaConfig {
     if (-not (Test-Path -LiteralPath $Arquivo)) { throw "Arquivo de configuracao nao encontrado: $Arquivo" }
     $cfg = Import-PowerShellDataFile -LiteralPath $Arquivo
     foreach ($k in 'MobaExe', 'MobaIni', 'PastaLogs', 'PastaDestino') { $cfg[$k] = Expand-Caminho $cfg[$k] }
+
+    # MobaExe vazio ou inexistente (ex.: config.psd1 sobrescrito pelo zip): acha o Moba sozinho
+    if (-not $cfg.MobaExe -or -not (Test-Path -LiteralPath $cfg.MobaExe)) {
+        $achado = Find-MobaExe -MobaIni $cfg.MobaIni
+        if ($achado) { $cfg.MobaExe = $achado; $cfg.MobaExeAutomatico = $true }
+    }
+    # Portable com ini ao lado: passa esse ini com -i (garante o ini do OneDrive mesmo se o
+    # .exe for da versao instalada, que usaria o %APPDATA%\MobaXterm\MobaXterm.ini)
+    if (-not $cfg.MobaIni -and $cfg.MobaExe -and (Test-Path -LiteralPath $cfg.MobaExe)) {
+        $pastaExe = Split-Path $cfg.MobaExe -Parent
+        $iniAoLado = Join-Path $pastaExe 'MobaXterm.ini'
+        if ($pastaExe -notlike '*\Mobatek\*' -and (Test-Path -LiteralPath $iniAoLado)) { $cfg.MobaIni = $iniAoLado }
+    }
     return $cfg
+}
+
+function Find-MobaExe {
+    # Procura o MobaXterm: pasta do ini, portable no OneDrive, pasta acima dos scripts, Documentos, instalado
+    param([string]$MobaIni)
+    $pastas = @()
+    if ($MobaIni) { $pastas += Split-Path $MobaIni -Parent }
+    if ($env:OneDrive) { $pastas += Join-Path (Join-Path $env:OneDrive 'Documents') 'MobaXterm' }
+    $acima = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent       # ...\MobaXterm\Scripts\MobaXterm-Tools -> ...\MobaXterm
+    if ($acima) { $pastas += $acima }
+    $docs = [Environment]::GetFolderPath('MyDocuments')
+    if ($docs) { $pastas += Join-Path $docs 'MobaXterm' }
+    foreach ($pf in ${env:ProgramFiles(x86)}, $env:ProgramFiles) { if ($pf) { $pastas += Join-Path $pf 'Mobatek\MobaXterm' } }
+    foreach ($p in $pastas) {
+        if (-not $p -or -not (Test-Path -LiteralPath $p)) { continue }
+        $exe = Get-ChildItem -LiteralPath $p -Filter 'MobaXterm*.exe' -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notmatch 'install|setup' } | Select-Object -First 1
+        if ($exe) { return $exe.FullName }
+    }
+    return $null
 }
 
 function Find-MobaIni {

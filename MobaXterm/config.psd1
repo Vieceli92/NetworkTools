@@ -3,11 +3,11 @@
 #  Pode usar variaveis de ambiente no formato %NOME% (ex.: %USERPROFILE%, %OneDrive%)
 # ==========================================================================
 @{
-    # Caminho do executavel do MobaXterm
-    #   Instalado : C:\Program Files (x86)\Mobatek\MobaXterm\MobaXterm.exe
-    #   Portable  : onde voce extraiu o MobaXterm_Personal_XX.exe
-    #               (ex.: '%OneDrive%\MobaXterm\MobaXterm_Personal_26.4.exe' - ver README)
-    MobaExe            = 'C:\Program Files (x86)\Mobatek\MobaXterm\MobaXterm.exe'
+    # Caminho do executavel do MobaXterm. Vazio (ou um caminho que nao existe) = acha sozinho:
+    # pasta do MobaIni, %OneDrive%\Documents\MobaXterm, Documentos\MobaXterm, Program Files.
+    #   Portable  : '%OneDrive%\Documents\MobaXterm\MobaXterm.exe' (ver README)
+    #   Instalado : 'C:\Program Files (x86)\Mobatek\MobaXterm\MobaXterm.exe'
+    MobaExe            = ''
 
     # MobaXterm.ini a usar. Vazio = padrao do Moba (Documentos\MobaXterm).
     # Para sincronizar pelo OneDrive, aponte para o ini dentro do OneDrive:

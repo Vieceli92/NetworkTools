@@ -326,6 +326,7 @@ O MobaXterm só tem o **SSH keepalive** (*Settings > SSH > SSH keepalive*, que j
 | `MobaXterm-NOMEPC.ini` no OneDrive | Moba aberto nos dois PCs ao mesmo tempo | Compare, mantenha o certo como `MobaXterm.ini` e apague o outro |
 | `AntiIdle ligado, mas o AutoHotkey v2 nao foi encontrado` | Falta o `AutoHotkey64.exe` | Dois cliques em `Instalar AntiIdle.cmd`, ou `AntiIdle = $false` no `config.psd1` para desligar |
 | Ícone "MobaXterm (logs)" sumiu da Área de Trabalho | — | Dois cliques em `Criar Atalhos.cmd` |
+| `MobaXterm nao encontrado em 'C:\Program Files (x86)\...'` | O `config.psd1` voltou ao padrão (extrair o zip por cima sobrescreve o config) | Atualize (`Atualizar.cmd`): agora, se o caminho não existir, os scripts acham o Moba sozinhos (portable no OneDrive primeiro). Para atualizar, prefira sempre o `Atualizar.cmd`, que preserva o config |
 | Atalho não abre nada / funciona num PC e no outro não | A Área de Trabalho sincroniza pelo OneDrive, e um atalho antigo guardava `C:\Users\<usuario do outro PC>\...` | Dois cliques em `Criar Atalhos.cmd` (os atalhos novos acham o OneDrive na hora, em cada PC). Se ainda falhar, o atalho mostra uma janela com o erro; detalhes em `%TEMP%\MobaTools\iniciar.log` e no `Diagnostico.cmd` |
 | Anti-idle não envia | Janela do Moba não reconhecida | Ícone da bandeja > "Listar janelas do Moba" e ajuste `ClassesAlvo` no `.ahk` |
 
