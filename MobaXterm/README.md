@@ -17,6 +17,7 @@ Scripts PowerShell (Windows PowerShell 5.1 ou PowerShell 7) para:
 | `Organizar-LogsMoba.ps1` | Move os logs para `2026\09-Setembro\24\...` |
 | `Pesquisar-Logs.ps1` + `MobaLogBusca.ps1` | **Janela de busca e comparação (diff) dos logs**, com prévia do log limpo |
 | `Pesquisar Logs.cmd` / `Criar Atalhos.cmd` | **Dois cliques**: abre a janela de busca / cria os ícones na Área de Trabalho e baixa o AutoHotkey |
+| `Comparar-MobaIni.ps1` / `Comparar Ini.cmd` | Mostra quais chaves do `MobaXterm.ini` mudaram depois de alterar algo na tela do Moba (para descobrir opções não documentadas) |
 | `Diagnosticar-MobaTools.ps1` / **`Diagnostico.cmd`** | **Confere tudo** (Moba, ini, logs, cores, AutoHotkey, atalhos) e mostra o que está errado; não altera nada |
 | `Atualizar-MobaTools.ps1` / **`Atualizar.cmd`** | **Atualiza esta pasta** com a versão mais nova do GitHub (mantém o seu `config.psd1`) |
 | `Instalar-AutoHotkey.ps1` / `Instalar AntiIdle.cmd` | Baixa o AutoHotkey v2 portátil (`AutoHotkey64.exe`) para a pasta `AntiIdle` |
@@ -135,7 +136,7 @@ O arquivo original nunca é alterado. O limpo vai para `%TEMP%\MobaLogs` ou para
 `.\Ajustar-MobaIni.ps1` (com o Moba fechado) faz estes ajustes:
 - troca `&S-&U-[@&H]&P-(&T)` por **`&S_&H_&T`**: sessão_host_horário, sem `[ ] ( ) @` e sem espaços. Colchetes quebram comandos do PowerShell, e o usuário e a porta estavam repetidos;
 - renomeia sessões `NOME (usuario)` para `NOME`, só se não existir outra sessão com o mesmo nome na pasta;
-- deixa ligado o X server na abertura do Moba (`XAuto=1`) e desliga o GSSAPI/Kerberos no SSH (`UseGSSAPI=0`, que só atrasa o login em roteador).
+- deixa ligado o X server na abertura do Moba (`XAuto=1`), desliga o GSSAPI/Kerberos no SSH (`UseGSSAPI=0`, que só atrasa o login em roteador) e liga o aviso antes de colar várias linhas (`WarnBeforePasteMultipleLines=1`).
 
 Também funciona num `.mobaconf` exportado: `-Ini arquivo.mobaconf -Saida ajustado.mobaconf`. `-SoLogs` faz só a parte de log. `-WhatIf` mostra o que mudaria.
 
@@ -357,6 +358,8 @@ O `not port 2288` tira o próprio SSH da captura.
 | Aviso ao colar várias linhas | Ligar | Evita colar config no equipamento errado |
 | Implicit CR/LF | Só se precisar | Ligue apenas se um equipamento (console serial) mostrar texto "em escada" |
 | Ctrl+Alt is different from AltGr | Desligado | No teclado ABNT2 o AltGr é usado para `/`, `?` e `°` |
+
+**Como aplicar:** o `Ajustar-MobaIni.ps1` já liga o aviso de colar várias linhas (`WarnBeforePasteMultipleLines=1`). As outras opções ficam num campo codificado e sem documentação do Moba, então **mude uma vez na tela**. Como o `MobaXterm.ini` vai pelo OneDrive, vale para os dois PCs. Para descobrir onde o Moba grava uma opção, use o `Comparar Ini.cmd`: ele tira uma foto do ini, você muda na tela e fecha o Moba, e ele mostra o que mudou.
 
 
 **Produtividade**

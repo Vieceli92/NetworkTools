@@ -11,6 +11,7 @@
       3. Garante LogFolder=_MobaFolder_\Log e log ligado
       4. X server: inicia junto com o MobaXterm (XAuto=1)
       5. SSH: desliga GSSAPI/Kerberos (UseGSSAPI=0), que so atrasa o login em roteador
+      6. Pede confirmacao antes de colar varias linhas (WarnBeforePasteMultipleLines=1)
     -SoLogs faz apenas os itens 1 a 3.
     Faz backup antes (.bak_AAAAMMDD_HHMMSS_fff). Use -WhatIf para so ver o que mudaria.
 
@@ -69,6 +70,7 @@ Set-Valor 'Misc' 'LogTerminalActivity' '1'
 if (-not $SoLogs) {
     Set-Valor 'Misc' 'XAuto' '1'
     Set-Valor 'SSH' 'UseGSSAPI' '0'
+    Set-Valor 'Misc' 'WarnBeforePasteMultipleLines' '1'   # pede confirmacao antes de colar varias linhas
 }
 
 # 2) renomear sessoes "Nome (algo)" -> "Nome"
