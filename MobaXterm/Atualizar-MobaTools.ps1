@@ -112,9 +112,9 @@ try {
         } else { Write-Ok 'config.psd1 mantido (sem opcoes novas)' }
     }
 
-    Get-ChildItem -LiteralPath $destino -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
     if ($remota) { Set-Content -LiteralPath $arqVersao -Value $remota.Sha, ('{0:yyyy-MM-dd HH:mm} {1}' -f $remota.Data.ToLocalTime(), $remota.Mensagem) }
-    Write-Ok 'Arquivos desbloqueados'
+    try { Get-ChildItem -LiteralPath $destino -Recurse -File | Unblock-File; Write-Ok 'Arquivos desbloqueados' }
+    catch { Write-Aviso "Nao consegui desbloquear os arquivos: $($_.Exception.Message)" }
     Write-Host "`nPronto! Se o MobaXterm ou a janela de pesquisa estiverem abertos, feche e abra de novo." -ForegroundColor Cyan
     Write-Host 'Se mudaram as cores (Syntax-Redes.ini), rode tambem o Instalar-SyntaxRedes.ps1 com o Moba fechado.'
 } catch {
