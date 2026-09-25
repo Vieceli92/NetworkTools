@@ -167,9 +167,11 @@ O script faz backup do ini, copia para `%OneDrive%\MobaXterm\MobaXterm.ini` e gr
 
 ```powershell
 # com o Moba FECHADO
-.\Instalar-SyntaxRedes.ps1          # instala os 2 perfis (completo e compacto)
-.\Instalar-SyntaxRedes.ps1 -Slot 3  # alternativa: o completo substitui o "Custom: Cisco (network)" nativo
+.\Instalar-SyntaxRedes.ps1              # completo no slot 3, compacto no slot 2
+.\Instalar-SyntaxRedes.ps1 -Slots 1,3    # alternativa: escolher outros slots
 ```
+
+O Moba **só mostra 3 perfis personalizados** (slots 1 a 3), que já vêm com exemplos. Por isso o instalador **substitui** o "Custom: Cisco (network)" (slot 3) e o "Custom: Unix shell" (slot 2). O slot 1 fica como está, e o backup do ini guarda os exemplos originais.
 
 São dois perfis:
 - **"Custom: Redes (Cisco/Huawei/Juniper)"**: o completo.
@@ -265,7 +267,7 @@ O MobaXterm só tem o **SSH keepalive** (*Settings > SSH > SSH keepalive*, que j
 | `... não está assinado digitalmente` | Arquivos baixados vêm marcados "da internet" | `Get-ChildItem -Recurse \| Unblock-File` + `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Se a empresa bloquear por GPO: `powershell -ExecutionPolicy Bypass -File .\Script.ps1` |
 | `'}' de fechamento ausente` | Script copiado e colado do chat/navegador | Baixe a pasta inteira (zip ou GitHub). Os scripts dependem de `MobaTools.Common.ps1` e `config.psd1` |
 | Alteração no ini "some" | O Moba estava aberto e regravou o ini ao fechar | Feche o Moba (inclusive o ícone perto do relógio) e rode de novo |
-| Perfil "Custom: Redes" não aparece na lista | Mesmo motivo acima, ou script gravou em outro ini | `.\Instalar-SyntaxRedes.ps1 -WhatIf` mostra o caminho; tem que ser o `MobaXterm.ini` ao lado do `.exe` |
+| Perfil "Custom: Redes" não aparece na lista | Versão antiga do instalador usava os slots 4 e 5, que o Moba não mostra; ou o Moba estava aberto; ou o script gravou em outro ini | Atualize os scripts e rode `Instalar-SyntaxRedes.ps1` de novo com o Moba fechado (ele move para os slots 3 e 2). A saída mostra o caminho do ini: tem que ser o que fica ao lado do `.exe` |
 | Perfil completo não colore nada | O Moba pode ter limite de tamanho de regex | Use o perfil **"Custom: Redes compacto"** |
 | Texto piscando | Grupo 8 do Moba pisca | Já corrigido: o grupo 8 fica vazio. Rode `Instalar-SyntaxRedes.ps1` de novo |
 | `MobaXterm-NOMEPC.ini` no OneDrive | Moba aberto nos dois PCs ao mesmo tempo | Compare, mantenha o certo como `MobaXterm.ini` e apague o outro |

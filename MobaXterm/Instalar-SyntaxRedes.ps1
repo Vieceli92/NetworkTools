@@ -3,12 +3,12 @@
     Instala os perfis de cores de redes (Cisco/Huawei/Juniper) no MobaXterm.ini.
 
 .DESCRIPTION
-    Copia cada perfil de Syntax-Redes.ini para o MobaXterm.ini como [CustomSyntaxN]:
-      - "Custom: Redes (Cisco/Huawei/Juniper)"  (completo)
-      - "Custom: Redes compacto"                (regras menores, caso o completo nao colora)
-    Se o perfil ja existir (mesmo Name=), ele e atualizado no mesmo slot; senao vai
-    para o proximo slot livre. -Slot escolhe o slot do perfil completo (ex.: -Slot 3
-    substitui o "Custom: Cisco (network)" que vem no Moba).
+    O MobaXterm so mostra 3 perfis personalizados ([CustomSyntax1] a [CustomSyntax3]),
+    que ja vem ocupados com exemplos. Por isso os perfis de Syntax-Redes.ini SUBSTITUEM:
+      - slot 3 ("Custom: Cisco (network)")  -> "Custom: Redes (Cisco/Huawei/Juniper)"  (completo)
+      - slot 2 ("Custom: Unix shell")       -> "Custom: Redes compacto"
+    O slot 1 ("Custom: OK/warning/error keywords") fica como esta. Use -Slots para escolher
+    outros (ex.: -Slots 1,3). Secoes antigas instaladas em slots invisiveis (4, 5...) sao removidas.
     O MobaXterm precisa estar FECHADO. Um backup do ini e criado antes.
 
     Depois: Settings > Configuration > Terminal > Syntax highlighting, ou em cada
@@ -17,7 +17,8 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [string]$Ini,
-    [int]$Slot = 0
+    # Slots (1 a 3) usados, na ordem dos perfis do Syntax-Redes.ini
+    [ValidateRange(1, 3)][int[]]$Slots = @(3, 2)
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,22 +40,26 @@ foreach ($l in [IO.File]::ReadAllLines((Join-Path $PSScriptRoot 'Syntax-Redes.in
 
 $linhas = [Collections.Generic.List[string]]::new([IO.File]::ReadAllLines($Ini, $latin1))
 $resumo = @()
-$primeiro = $true
+$nomesNossos = $perfis | ForEach-Object { ($_ | Where-Object { $_ -like 'Name=*' }) -replace '^Name=' }
+if ($Slots.Count -lt $perfis.Count) { throw "Informe $($perfis.Count) slots em -Slots (um por perfil)." }
+
+# Limpa instalacoes antigas nos slots que o Moba nao mostra (4, 5, ...)
+for ($i = 0; $i -lt $linhas.Count; $i++) {
+    if ($linhas[$i] -match '^\[CustomSyntax(\d+)\]$' -and [int]$Matches[1] -gt 3) {
+        $fim = $i + 1
+        while ($fim -lt $linhas.Count -and $linhas[$fim] -notmatch '^\[') { $fim++ }
+        $nomeSecao = ($linhas.GetRange($i, $fim - $i) | Where-Object { $_ -like 'Name=*' }) -replace '^Name='
+        if ($nomesNossos -contains $nomeSecao) {
+            $resumo += "  removido $($linhas[$i]) $nomeSecao (slot invisivel no Moba)"
+            $linhas.RemoveRange($i, $fim - $i); $i--
+        }
+    }
+}
+
+$n = 0
 foreach ($perfil in $perfis) {
     $nome = ($perfil | Where-Object { $_ -like 'Name=*' }) -replace '^Name='
-
-    # Mapeia os slots existentes: numero -> Name
-    $slots = @{}; $atual = $null
-    foreach ($l in $linhas) {
-        if ($l -match '^\[CustomSyntax(\d+)\]$') { $atual = [int]$Matches[1]; $slots[$atual] = ''; continue }
-        if ($l -match '^\[') { $atual = $null; continue }
-        if ($atual -and $l -match '^Name=(.*)$') { $slots[$atual] = $Matches[1] }
-    }
-    $alvo = if ($primeiro -and $Slot -gt 0) { $Slot } else {
-        $existente = $slots.Keys | Where-Object { $slots[$_] -eq $nome } | Select-Object -First 1
-        if ($existente) { $existente } else { (@($slots.Keys) + 0 | Measure-Object -Maximum).Maximum + 1 }
-    }
-    $primeiro = $false
+    $alvo = $Slots[$n++]
 
     # Remove a secao do slot escolhido (se existir) e grava a nova no lugar
     $inicio = $linhas.IndexOf("[CustomSyntax$alvo]")
