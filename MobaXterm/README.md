@@ -17,6 +17,7 @@ Scripts PowerShell (Windows PowerShell 5.1 ou PowerShell 7) para:
 | `Organizar-LogsMoba.ps1` | Move os logs para `2026\09-Setembro\24\...` |
 | `Pesquisar-Logs.ps1` + `MobaLogBusca.ps1` | **Janela de busca e comparação (diff) dos logs**, com prévia do log limpo |
 | `Pesquisar Logs.cmd` / `Criar Atalhos.cmd` | **Dois cliques**: abre a janela de busca / cria os ícones na Área de Trabalho e baixa o AutoHotkey |
+| `Atualizar-MobaTools.ps1` / **`Atualizar.cmd`** | **Atualiza esta pasta** com a versão mais nova do GitHub (mantém o seu `config.psd1`) |
 | `Instalar-AutoHotkey.ps1` / `Instalar AntiIdle.cmd` | Baixa o AutoHotkey v2 portátil (`AutoHotkey64.exe`) para a pasta `AntiIdle` |
 | `Iniciar-MobaXterm.ps1` | Organiza os logs → abre o Moba → organiza de novo quando o Moba fecha |
 | `Instalar-MobaTools.ps1` | Cria o atalho **"MobaXterm (logs)"** e (opcional) uma tarefa agendada |
@@ -53,7 +54,13 @@ Sempre com o **MobaXterm fechado**, inclusive o ícone perto do relógio.
 3. Na primeira abertura, use a mesma master password. Chaves SSH: copie `%APPDATA%\MobaXterm\home\.ssh` do trabalho.
 4. Anti-idle: instale o AutoHotkey v2 (ou coloque o `AutoHotkey64.exe` na pasta `AntiIdle`).
 
-**Atualizando os scripts:** desbloqueie o zip novo, extraia por cima e rode de novo só o que mudou (ex.: `.\Instalar-SyntaxRedes.ps1`). Os scripts podem ser rodados várias vezes sem problema: eles atualizam no lugar e fazem backup.
+**Atualizando os scripts:** dois cliques em **`Atualizar.cmd`**. Ele:
+- baixa a versão mais nova do GitHub e copia por cima da pasta;
+- **mantém o seu `config.psd1`**, acrescentando opções novas com o valor padrão;
+- não mexe no AutoHotkey nem nos logs, e desbloqueia os arquivos;
+- se já estiver atualizado, avisa e não baixa nada (`versao.txt` guarda a versão instalada).
+
+Se mudaram as cores (`Syntax-Redes.ini`), rode também `Instalar-SyntaxRedes.ps1` com o Moba fechado.
 
 ---
 
@@ -100,6 +107,7 @@ Dois cliques em **`Pesquisar Logs.cmd`**, ou no ícone **"Pesquisar logs Moba"**
 - Digite um **hostname, IP ou qualquer texto** e tecle Enter. A busca é no **nome** e/ou **dentro** do log, inclusive nos `.zip` de meses compactados. Marque **Regex** para buscas como `NE40-.*ERM`.
 - **De / Até** filtra por data (pastas `Ano\Mês\Dia`, nome do log ou data do arquivo).
 - Clique num resultado para ver o log **limpo**, com as ocorrências destacadas. `F3` / `Shift+F3` navega entre elas.
+- **Ocultar / Mostrar data/hora** tira ou põe o `[2026-09-25 02:41:49.217]` do começo das linhas. Abrir, salvar, copiar e exportar usam o que estiver na tela.
 - **Abrir limpo** (Bloco de Notas, também com duplo clique), **Salvar limpo...**, **Exportar limpos...** (todos da lista, numa subpasta por equipamento: `NE40-BGP\2026-09-24_....limpo.txt`), **Abrir pasta**, **Copiar tudo**.
 
 **Comparar (o que mudou entre datas)**
@@ -108,6 +116,7 @@ Dois cliques em **`Pesquisar Logs.cmd`**, ou no ícone **"Pesquisar logs Moba"**
    - selecione **2 logs** (Ctrl+clique) e clique em **Comparar**;
    - selecione **1 log** e clique em **Comparar com anterior**, que pega sozinho o log anterior do mesmo equipamento.
 3. Na janela de comparação, escolha **o mesmo comando** nos dois logs ou **(log inteiro)**. Ela já abre na config (`display current-configuration` / `show running-config`) se existir nos dois. Formas abreviadas são reconhecidas como o mesmo comando: `dis cur` = `display current-configuration`, `sh run` = `show running-config`, `dis int br` = `display interface brief`.
+   A data/hora do começo das linhas é sempre ignorada na comparação; senão todas as linhas seriam diferentes.
 4. O resultado mostra linhas **removidas em vermelho** (`-`) e **adicionadas em verde** (`+`), com o número da linha em A e em B.
    - **Ignorar números** esconde mudanças de contadores, uptime e percentuais; sobra só o que mudou de estado.
    - **Ignorar espaços** desconsidera diferenças de espaçamento.
