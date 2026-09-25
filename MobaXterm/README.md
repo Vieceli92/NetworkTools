@@ -224,26 +224,32 @@ Depois escolha o perfil em **Settings > Configuration > Terminal > Syntax highli
 
 Um perfil só cobre os três fabricantes (o Moba aplica **um** perfil por sessão). O que ele destaca (as cores seguem o esquema dos perfis nativos do Moba):
 
-| Grupo | Exemplos |
-|---|---|
-| **Vermelho: atenção** | `down`, `*down`, `administratively`, `err-disabled`, BGP `Idle`/`Connect`/`OpenSent`, `error`, `timeout`, `unreachable`; linhas que começam com `no` / `undo` / `delete` / `deactivate` |
-| **Vermelho: contadores** | só erros **diferentes de zero**: `152 input errors`, `37 CRC`, `Total Error: 12` (com `0 CRC` não pinta) |
-| **Vermelho: limites** | uso ≥ 90% (`95.2%`), potência óptica fraca (`-25 dBm` ou menos), `reliability` < 255/255, `txload`/`rxload` ≥ 230/255, drops na `Input queue` |
-| **Vermelho/verde: flags** | port-channel e Huawei: `Gi1/0/2(s)`, `(D)`, `(I)`, `GE0/3/0(b)`, `(E)` em vermelho; `(P)`, `(SU)`, `(RU)` em verde. `A/D`, `u/D` em vermelho; `u/u` em verde |
-| **Vermelho: OSPF travado** | `EXSTART`, `EXCHANGE`, `LOADING`, `INIT` (só no completo). `FULL` fica verde |
-| **Vermelho: syslog** | severidade 0 a 3: `%LINK-3-UPDOWN`, `%%01XXX/2/...` |
-| **Vermelho: prompt em modo config** | `R1(config-if)#`, `[~NE40]`, `[*NE40]` (alteração ainda sem commit), `user@mx#`, `[edit ...]`. Você vê na hora que está em modo de configuração |
-| **Vermelho/verde: diff** | linhas `- ...` / `+ ...` de `show \| compare` (Juniper) e `display configuration candidate` (Huawei) |
-| Verde: OK | `up`, `Established`, `FULL`, `forwarding`, `enabled`, `full-duplex`; linhas `description`, `hostname`, `sysname`, `host-name` |
-| Endereços / interfaces | IPv4 (com /máscara ou :porta), IPv6, **RD/RT** (`65001:100`, `45.6.28.1:200`), MAC (3 formatos), VLAN/Vlanif, `AS65001`, `Gi0/0/1`, `Po10`, `GE0/3/0`, `100GE1/0/1`, `Eth-Trunk10`, `ge-0/0/0.0`, `xe-`, `et-`, `ae0`, `irb.100`, `lo0` |
-| Comentários | linhas `!` (Cisco) e `#` (Huawei/Juniper) |
-| Blocos de config | `interface`, `bgp`, `ospf`, `isis`, `mpls`, `vpn-instance`, `route-policy`, `pppoe`, `radius`, `ip pool`, `policy-statement`, `routing-instances`... |
-| Comandos | `show`, `display`, `dis`, `ping`, `tracert`, `system-view`, `commit`, `rollback`, `save`, `set`... |
-| Prompts normais | `R1#`, `R1>`, `<NE40>`, `user@mx>`, com a mesma cor dos comandos. O grupo 8 do Moba faz o texto **piscar**, por isso fica vazio |
+O Moba tem **8 grupos de regras, cada um com uma cor fixa**. Não dá para escolher a cor de cada regra como no SecureCRT. As regras foram distribuídas assim, com foco em **Huawei**. A cor exata de cada grupo aparece em *Settings > Terminal > Customize*.
 
-O perfil **compacto** deixa de fora: IPv6, `reliability`/`txload`/`Input queue`, estados OSPF travados e alguns sinônimos (`invalid`, `lost`, `blocking`, `suspended`...).
+| Grupo | O que pinta | Exemplos |
+|---|---|---|
+| **1 · MPLS / VPLS / VPN** | MPLS, LDP, TE, SR, VPLS/VSI, PW/L2VC, L2VPN/VPWS, EVPN, L3VPN, RD/RT | `mpls ldp`, `mpls l2vc`, `vsi`, `pw-template`, `vpn-instance`, `vpn-target 65001:100`, `route-distinguisher 65001:100`, LDP ID `45.6.29.1:0`, `imp-null` |
+| **2 · Vermelho (ruim)** | estados ruins | `down`, `*down`, `Idle`, `Unselect`, `Abnormal`, `Offline`, `Unregistered`, `err-disabled`, `error`, `timeout`, `unreachable`, `A/D`, `u/D`, flags `(b)`, `(d)`, `(E)`, `(s)`, `(D)` |
+| | contadores **≠ 0** | `152 input errors`, `37 CRC`, `Total Error: 12` (com `0 CRC` não pinta) |
+| | limites | uso ≥ 90%, luz óptica ≤ -25 dBm, `reliability` < 255, `txload` ≥ 230/255, drops na `Input queue` |
+| | syslog 0-3 e config | `%%01IFNET/2/...`, `%LINK-3-UPDOWN`; linhas `undo`/`no`/`delete`; linhas `-` de diff |
+| | **prompt em modo config** | `[~NE40]`, `[*NE40]` (sem commit), `R1(config-if)#`, `user@mx#`, `[edit ...]` |
+| **3 · Verde (bom)** | estados bons | `up`, `Established`, `Full`, `Master`, `Selected`, `Normal`, `Registered`, `Operational`, `forwarding`, `u/u`, `(P)`, `(SU)`; linhas `description`/`sysname`; linhas `+` de diff |
+| **4 · Atenção** | nem bom nem ruim | BGP `Active`/`Connect`/`OpenSent`/`OpenConfirm`, OSPF `Init`/`ExStart`/`Exchange`/`Loading`, LDP `Initialized`, `Standby`, `Backup`, `Passive`, `mismatch`, `flapping`, `minor`, `warning`, uso de 70-89%, luz de -20 a -25 dBm, syslog severidade 4 (`%%01BGP/4/...`) |
+| **5 · Protocolos** | blocos e protocolos | `interface`, `bgp`, `ospf`, `isis`, `static`, `ibgp`/`ebgp`, `o_ase`, `route-policy`, `ip-prefix`, `acl`, `qos`, `pppoe`, `bas`, `radius`, `aaa`, `ip pool`, `vrrp`, `bfd`, `lacp`... |
+| **6 · Endereços / interfaces** | IPs e portas | IPv4 (/máscara), IPv6, MAC (3 formatos), `GE0/3/0`, `XGE`, `100GE1/0/1`, `Eth-Trunk10`, `Vlanif100`, `LoopBack0`, `Global-VE`, `Gi0/0/1`, `ge-0/0/0.0`, `ae0`, `AS65001` |
+| **7 · Comandos e prompts** | o que você digita | `<NE40>display ...`, `system-view`, `commit`, `R1#show ...`, `user@mx> show ...` |
+| 8 | vazio | o Moba faz esse grupo **piscar** |
 
-Limitações: o estado BGP `Active` não fica vermelho, porque "active" aparece em saídas normais (ex.: `10 active routes`). O prompt do Huawei VRP5 sem `~`/`*` (`[HUAWEI]`) não é tratado como modo config.
+O grupo 1 era o de URLs, que não servem para nada em roteador; virou o grupo do MPLS/VPLS, com cor própria. Para caber o grupo de **atenção**, os comentários `#`/`!` deixaram de ter cor.
+
+O perfil **compacto** deixa de fora: IPv6, `reliability`/`txload`/`Input queue` e alguns sinônimos.
+
+Limitações:
+- `Active` fica em **atenção**, porque no BGP é ruim mas aparece em saídas normais (`10 active routes`).
+- O prompt do Huawei VRP5 sem `~`/`*` (`[HUAWEI]`) não é tratado como modo config.
+
+Ideias de cores adaptadas do SecureCRT: [feralpacket](https://feralpacket.org/?p=817) e [netOS-cli](https://github.com/h-lopez/netOS-cli).
 
 Quer ajustar? Edite as regex no próprio Moba (*Settings > Terminal > Syntax highlighting > editar*) ou em `Syntax-Redes.ini` e rode o instalador de novo. O arquivo está em Latin-1: o caractere `¨` marca início/fim de linha nas regex do Moba.
 
