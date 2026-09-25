@@ -48,7 +48,7 @@ MPLS_EXTRA = ("|rsvp|te|implicit-null|explicit-null|pop|swap|push|labels|in-labe
               "kompella|evpl|bd|remote-peer|mpls-l2vc|control-word|mtu-negotiate|lsp-trigger|ldp-sync|"
               "export-extcommunity|import-extcommunity|ip-vpn|vpn|rd|rt|xconnect|l2transport|mpls-tp")
 IPV4_BASE = r"([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.[0-9]+\.[0-9]+\.[0-9]+"
-RD_RT = r"[1-9][0-9]{2,9}:[0-9]{1,10}(:" + IPV4_BASE + ")?|" + IPV4_BASE + r":[0-9]{1,5}"
+RD_RT = r"[1-9][0-9][0-9]+:[0-9]+(:" + IPV4_BASE + ")?|" + IPV4_BASE + r":[0-9]+"
 
 
 def def1(completo):
@@ -74,7 +74,7 @@ CONTADORES = (r"[^0-9.][1-9][0-9]* (input |output )?(errors|crc|drops|discards|r
 CONTADORES_CURTO = (r"[^0-9.][1-9][0-9]* (input |output )?(errors|crc|drops|discards)"
                     r"|(crc|errors|drops|discards|total error)[: ]+[1-9][0-9]*")
 LIMITES = (r"[^0-9.](9[0-9]|100)(\.[0-9]+)?%|-(2[5-9]|[3-9][0-9])\.[0-9]+ ?dbm"
-           r"|reliability ([0-9]{1,2}|1[0-9][0-9]|2[0-4][0-9]|25[0-4])/255|[rt]xload (2[3-4][0-9]|25[0-5])/255"
+           r"|reliability ([0-9][0-9]?|1[0-9][0-9]|2[0-4][0-9]|25[0-4])/255|[rt]xload (2[3-4][0-9]|25[0-5])/255"
            r"|input queue: [0-9]+/[0-9]+/[1-9][0-9]*")
 LIMITES_CURTO = r"[^0-9.](9[0-9]|100)(\.[0-9]+)?%|-(2[5-9]|[3-9][0-9])\.[0-9]+ ?dbm"
 SYSLOG_RUIM = r"%%?[0-9]*[A-Za-z0-9_]+[-/][0-3][-/][A-Za-z0-9_]+"
@@ -104,7 +104,11 @@ def def3(completo):
 
 # ------------------------------------------------------------------ enderecos IP (amarelo, Def4)
 IPV4 = IPV4_BASE + r"(/[0-9]+)?"
-IPV6 = r"([0-9a-f]{1,4}(:[0-9a-f]{1,4}){7}|[0-9a-f]{0,4}(:[0-9a-f]{1,4}){0,6}::([0-9a-f]{1,4}(:[0-9a-f]{1,4}){0,6})?)(/[0-9]+)?"
+# IPv6 sem quantificadores {n,m}: a tela do Moba diz que os padroes de cada cor sao
+# "separados por virgula", entao nenhuma regra usa virgula.
+# Formas: completa (8 grupos) ou comprimida com "::" (ex.: 2001:db8::1, fe80::1, ::1)
+IPV6 = (r"([0-9a-f]+:[0-9a-f]+:[0-9a-f]+:[0-9a-f]+:[0-9a-f]+:[0-9a-f]+:[0-9a-f]+:[0-9a-f]+"
+        r"|([0-9a-f]+:)*[0-9a-f]*::[0-9a-f:]*[0-9a-f])(/[0-9]+)?")
 
 
 # ------------------------------------------------------------------ Def4 atencao / warning
@@ -121,8 +125,9 @@ def def4(completo):
     # amarelo tambem para os enderecos IP e as linhas "ip address ..." (pedido do usuario)
     ip_address = K + "(ip address|ipv6 address|ip binding|ip route-static)( [0-9a-f.:/]+)*"
     ips = B + "(" + alt(IPV4, IPV6 if completo else "") + ")" + B
-    return "(" + alt(palavras(ATENCAO_CURTO + (ATENCAO_EXTRA if completo else ""), K),
-                     LIMITES_ATENCAO, SYSLOG_ATENCAO, ip_address, ips) + ")"
+    # IPs primeiro, no mesmo formato que ja funcionava no grupo ciano
+    return "(" + alt(ips, ip_address, palavras(ATENCAO_CURTO + (ATENCAO_EXTRA if completo else ""), K),
+                     LIMITES_ATENCAO, SYSLOG_ATENCAO) + ")"
 
 
 # ------------------------------------------------------------------ Def5 protocolos / blocos de config
@@ -181,6 +186,8 @@ def perfil(nome, completo):
             6: def1(completo),   # magenta: MPLS / VPN
             7: def6(completo),   # ciano: enderecos / interfaces
             8: ""}               # piscando: nao usar
+    virgulas = {i: v.count(",") for i, v in defs.items() if "," in v}
+    assert not virgulas, f"regra com virgula (o Moba pode separar os padroes por virgula): {virgulas}"
     if not completo:
         grandes = {i: len(v) for i, v in defs.items() if len(v) > LIMITE_COMPACTO}
         assert not grandes, f"perfil compacto passou de {LIMITE_COMPACTO} caracteres: {grandes}"
