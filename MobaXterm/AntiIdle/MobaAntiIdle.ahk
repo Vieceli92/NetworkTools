@@ -17,7 +17,10 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 Persistent
-SetTitleMatchMode "RegEx"      ; necessario para "ahk_exe i)^MobaXterm.*\.exe$" (portable ou instalado)
+SetTitleMatchMode "RegEx"
+; Em modo RegEx o ahk_exe e comparado com o CAMINHO COMPLETO do programa
+; (C:\...\OneDrive\...\MobaXterm.exe), entao o padrao aceita "\" antes do nome.
+MobaExe := "ahk_exe i)(^|\\)MobaXterm[^\\]*\.exe$"
 
 ; ---------------------------------------------------------------- ajustes
 IntervaloSeg   := 240                    ; menor que o timeout do equipamento (ex.: 5 min -> 240 s)
@@ -60,7 +63,7 @@ AlternarPausa(*) {
 
 JanelasMoba() {
     lista := []
-    for hwnd in WinGetList("ahk_exe i)^MobaXterm.*\.exe$") {
+    for hwnd in WinGetList(MobaExe) {
         try {
             if !DllCall("IsWindowVisible", "ptr", hwnd)
                 continue
@@ -80,11 +83,11 @@ EnviarAntiIdle(forcar := false) {
     global UltimoEnvio, AvisouSemJanela
     if !Ativo && !forcar
         return
-    if SairSemMoba && !WinExist("ahk_exe i)^MobaXterm.*\.exe$")
+    if SairSemMoba && !WinExist(MobaExe)
         ExitApp
     janelas := JanelasMoba()
     if janelas.Length = 0 {
-        if !AvisouSemJanela && WinExist("ahk_exe i)^MobaXterm.*\.exe$") {
+        if !AvisouSemJanela && WinExist(MobaExe) {
             AvisouSemJanela := true
             TrayTip "Nenhuma janela do Moba reconhecida. Use 'Listar janelas do Moba' e ajuste ClassesAlvo.", "Moba Anti-Idle"
         }
@@ -109,7 +112,7 @@ EnviarAntiIdle(forcar := false) {
 
 ListarJanelas(*) {
     txt := ""
-    for hwnd in WinGetList("ahk_exe i)^MobaXterm.*\.exe$") {
+    for hwnd in WinGetList(MobaExe) {
         try {
             if !DllCall("IsWindowVisible", "ptr", hwnd)
                 continue
