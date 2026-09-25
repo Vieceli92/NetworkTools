@@ -208,11 +208,9 @@ O script faz backup do ini, copia para `%OneDrive%\MobaXterm\MobaXterm.ini` e gr
 
 ```powershell
 # com o Moba FECHADO
-.\Instalar-SyntaxRedes.ps1              # completo no slot 3, compacto no slot 2
-.\Instalar-SyntaxRedes.ps1 -Slots 1,3    # alternativa: escolher outros slots
+.\Instalar-SyntaxRedes.ps1              # slots livres (4 e 5), sem mexer nos exemplos do Moba
+.\Instalar-SyntaxRedes.ps1 -Slots 6,7    # alternativa: escolher os slots
 ```
-
-O Moba **só mostra 3 perfis personalizados** (slots 1 a 3), que já vêm com exemplos. Por isso o instalador **substitui** o "Custom: Cisco (network)" (slot 3) e o "Custom: Unix shell" (slot 2). O slot 1 fica como está, e o backup do ini guarda os exemplos originais.
 
 São dois perfis:
 - **"Custom: Redes (Cisco/Huawei/Juniper)"**: o completo.
@@ -224,24 +222,26 @@ Depois escolha o perfil em **Settings > Configuration > Terminal > Syntax highli
 
 Um perfil só cobre os três fabricantes (o Moba aplica **um** perfil por sessão). O que ele destaca (as cores seguem o esquema dos perfis nativos do Moba):
 
-O Moba tem **8 grupos de regras, cada um com uma cor fixa**. Não dá para escolher a cor de cada regra como no SecureCRT. As regras foram distribuídas assim, com foco em **Huawei**. A cor exata de cada grupo aparece em *Settings > Terminal > Customize*.
+O Moba tem **8 grupos de regras, cada um com uma cor fixa**: Sublinhado, Vermelho, Verde, Amarelo, Azul, Magenta, Ciano e Piscando (veja em *Settings > Terminal > Customize*). Não dá para escolher a cor de cada regra como no SecureCRT. A distribuição, com foco em **Huawei**:
 
-| Grupo | O que pinta | Exemplos |
+| Cor | O que pinta | Exemplos |
 |---|---|---|
-| **1 · MPLS / VPLS / VPN** | MPLS, LDP, TE, SR, VPLS/VSI, PW/L2VC, L2VPN/VPWS, EVPN, L3VPN, RD/RT | `mpls ldp`, `mpls l2vc`, `vsi`, `pw-template`, `vpn-instance`, `vpn-target 65001:100`, `route-distinguisher 65001:100`, LDP ID `45.6.29.1:0`, `imp-null` |
-| **2 · Vermelho (ruim)** | estados ruins | `down`, `*down`, `Idle`, `Unselect`, `Abnormal`, `Offline`, `Unregistered`, `err-disabled`, `error`, `timeout`, `unreachable`, `A/D`, `u/D`, flags `(b)`, `(d)`, `(E)`, `(s)`, `(D)` |
+| **Azul** | **prompt (nome do equipamento) + comando** | `<NE40-BGP>display bgp peer`, `R1#show ...`, `user@mx> show ...` |
+| **Vermelho** | estados ruins | `*down`, `Idle`, `Unselect`, `Abnormal`, `Offline`, `Unregistered`, `err-disabled`, `error`, `timeout`, `A/D`, `u/D`, flags `(b)`, `(d)`, `(E)`, `(s)`, `(D)` |
 | | contadores **≠ 0** | `152 input errors`, `37 CRC`, `Total Error: 12` (com `0 CRC` não pinta) |
-| | limites | uso ≥ 90%, luz óptica ≤ -25 dBm, `reliability` < 255, `txload` ≥ 230/255, drops na `Input queue` |
-| | syslog 0-3 e config | `%%01IFNET/2/...`, `%LINK-3-UPDOWN`; linhas `undo`/`no`/`delete`; linhas `-` de diff |
+| | limites | uso ≥ 90%, luz óptica ≤ -25 dBm, `reliability` < 255, `txload` ≥ 230/255 |
+| | syslog 0-3, `undo`/`no`, diff `-` | `%%01IFNET/2/...`, `%LINK-3-UPDOWN` |
 | | **prompt em modo config** | `[~NE40]`, `[*NE40]` (sem commit), `R1(config-if)#`, `user@mx#`, `[edit ...]` |
-| **3 · Verde (bom)** | estados bons | `up`, `Established`, `Full`, `Master`, `Selected`, `Normal`, `Registered`, `Operational`, `forwarding`, `u/u`, `(P)`, `(SU)`; linhas `description`/`sysname`; linhas `+` de diff |
-| **4 · Atenção** | nem bom nem ruim | BGP `Active`/`Connect`/`OpenSent`/`OpenConfirm`, OSPF `Init`/`ExStart`/`Exchange`/`Loading`, LDP `Initialized`, `Standby`, `Backup`, `Passive`, `mismatch`, `flapping`, `minor`, `warning`, uso de 70-89%, luz de -20 a -25 dBm, syslog severidade 4 (`%%01BGP/4/...`) |
-| **5 · Protocolos** | blocos e protocolos | `interface`, `bgp`, `ospf`, `isis`, `static`, `ibgp`/`ebgp`, `o_ase`, `route-policy`, `ip-prefix`, `acl`, `qos`, `pppoe`, `bas`, `radius`, `aaa`, `ip pool`, `vrrp`, `bfd`, `lacp`... |
-| **6 · Endereços / interfaces** | IPs e portas | IPv4 (/máscara), IPv6, MAC (3 formatos), `GE0/3/0`, `XGE`, `100GE1/0/1`, `Eth-Trunk10`, `Vlanif100`, `LoopBack0`, `Global-VE`, `Gi0/0/1`, `ge-0/0/0.0`, `ae0`, `AS65001` |
-| **7 · Comandos e prompts** | o que você digita | `<NE40>display ...`, `system-view`, `commit`, `R1#show ...`, `user@mx> show ...` |
-| 8 | vazio | o Moba faz esse grupo **piscar** |
+| **Verde** | estados bons | `up`, `Established`, `Full`, `Master`, `Selected`, `Normal`, `Registered`, `Operational`, `u/u`, `(P)`, `(SU)`; linhas `description`/`sysname`; diff `+` |
+| **Amarelo** | atenção | BGP `Active`/`Connect`/`OpenSent`, OSPF `Init`/`ExStart`/`Loading`, LDP `Initialized`, `Standby`, `Backup`, `Passive`, `mismatch`, `flapping`, uso de 70-89%, luz de -20 a -25 dBm, syslog severidade 4 |
+| **Magenta** | **MPLS / VPLS / L2VPN / L3VPN** | `mpls ldp`, `mpls l2vc`, `vsi`, `pw-template`, `evpn`, `vpn-instance`, `vpn-target 65001:100`, `route-distinguisher ...`, LDP ID `45.6.29.1:0`, `imp-null`, `sr-mpls`, `srv6` |
+| **Ciano** | endereços e interfaces | IPv4/IPv6, MAC, `GE0/3/0`, `XGE`, `100GE1/0/1`, `Eth-Trunk10`, `Vlanif100`, `Global-VE`, `Gi0/0/1`, `ge-0/0/0.0`, `AS65001` |
+| Sublinhado | protocolos e blocos | `interface`, `bgp`, `ospf`, `isis`, `static`, `ibgp`/`ebgp`, `route-policy`, `acl`, `qos`, `pppoe`, `bas`, `radius`, `ip pool`, `vrrp`, `bfd` |
+| Piscando | (vazio) | |
 
-O grupo 1 era o de URLs, que não servem para nada em roteador; virou o grupo do MPLS/VPLS, com cor própria. Para caber o grupo de **atenção**, os comentários `#`/`!` deixaram de ter cor.
+**Instalação:** o Moba tem **8 slots** de perfil. Os slots 1-3 trazem exemplos do Moba e não são mexidos. Os perfis "Custom: Redes..." vão para os slots livres (normalmente 4 e 5), ou são atualizados onde já estiverem. Se uma versão anterior substituiu os exemplos "Cisco (network)"/"Unix shell", dá para recriá-los no Moba: *Customize > Import "network" / "shell" syntax definition*.
+
+**Azul mais forte:** o tom vem da paleta do terminal (*Settings > Terminal > Default color settings > Blue*).
 
 O perfil **compacto** deixa de fora: IPv6, `reliability`/`txload`/`Input queue` e alguns sinônimos.
 
@@ -314,7 +314,7 @@ O MobaXterm só tem o **SSH keepalive** (*Settings > SSH > SSH keepalive*, que j
 | `... não está assinado digitalmente` | Arquivos baixados vêm marcados "da internet" | `Get-ChildItem -Recurse \| Unblock-File` + `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Se a empresa bloquear por GPO: `powershell -ExecutionPolicy Bypass -File .\Script.ps1` |
 | `'}' de fechamento ausente` | Script copiado e colado do chat/navegador | Baixe a pasta inteira (zip ou GitHub). Os scripts dependem de `MobaTools.Common.ps1` e `config.psd1` |
 | Alteração no ini "some" | O Moba estava aberto e regravou o ini ao fechar | Feche o Moba (inclusive o ícone perto do relógio) e rode de novo |
-| Perfil "Custom: Redes" não aparece na lista | Versão antiga do instalador usava os slots 4 e 5, que o Moba não mostra; ou o Moba estava aberto; ou o script gravou em outro ini | Atualize os scripts e rode `Instalar-SyntaxRedes.ps1` de novo com o Moba fechado (ele move para os slots 3 e 2). A saída mostra o caminho do ini: tem que ser o que fica ao lado do `.exe` |
+| Perfil "Custom: Redes" não aparece na lista | O Moba estava aberto, ou abriu outro ini (ex.: o do AppData) | Atualize os scripts e rode `Instalar-SyntaxRedes.ps1` de novo com o Moba fechado (ele move para os slots 3 e 2). A saída mostra o caminho do ini: tem que ser o que fica ao lado do `.exe` |
 | Perfil completo não colore nada | O Moba pode ter limite de tamanho de regex | Use o perfil **"Custom: Redes compacto"** |
 | Texto piscando | Grupo 8 do Moba pisca | Já corrigido: o grupo 8 fica vazio. Rode `Instalar-SyntaxRedes.ps1` de novo |
 | Moba abre sem as sessões/cores do OneDrive | O `.exe` é da versão **instalada**: ela ignora o ini ao lado dele e usa `%APPDATA%\MobaXterm\MobaXterm.ini` | Rode `Migrar-ParaPortable.ps1` de novo (ele grava `MobaIni` no `config.psd1`) e abra sempre pelo atalho **"MobaXterm (logs)"**, que passa `-i <ini do OneDrive>` |

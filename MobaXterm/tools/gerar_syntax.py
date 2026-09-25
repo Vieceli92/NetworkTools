@@ -2,13 +2,17 @@
 """Gera Syntax-Redes.ini (perfis de syntax highlighting do MobaXterm para redes).
 
 O MobaXterm tem 8 grupos de regex por perfil (Def1..Def8), cada um com uma cor FIXA
-(nao da para escolher a cor de cada regra como no SecureCRT). Distribuicao usada, com
-foco em Huawei VRP (tambem cobre Cisco e Juniper):
-  Def1 MPLS / VPLS / L2VPN / L3VPN (era o grupo de URL, inutil em roteador)
-  Def2 ruim (vermelho)            Def3 bom (verde)
-  Def4 atencao / warning          Def5 protocolos e blocos de config
-  Def6 enderecos e interfaces     Def7 comandos e prompts
-  Def8 vazio: o Moba faz esse grupo PISCAR
+(Settings > Terminal > Customize): Def1 Sublinhado, Def2 Vermelho, Def3 Verde, Def4 Amarelo,
+Def5 Azul, Def6 Magenta, Def7 Ciano, Def8 Piscando. Distribuicao usada (foco em Huawei VRP,
+tambem cobre Cisco e Juniper):
+  Def1 sublinhado  protocolos e blocos de config (bgp, ospf, interface...)
+  Def2 vermelho    ruim
+  Def3 verde       bom
+  Def4 amarelo     atencao / warning
+  Def5 azul        prompt (nome do equipamento) + comandos
+  Def6 magenta     MPLS / VPLS / L2VPN / L3VPN, RD/RT
+  Def7 ciano       enderecos e interfaces
+  Def8 piscando    vazio
 No arquivo, o caractere U+00A8 marca inicio/fim de linha (o Moba usa isso no lugar de ^ e $).
 
 Ideias adaptadas dos perfis de SecureCRT da comunidade:
@@ -157,13 +161,20 @@ PROMPT = L + "(<[A-Za-z0-9_.:/-]+>|" + H + "@" + H + "[>%]|" + H + "[#>])"
 
 
 def def7(completo):
-    # prompts vao junto com os comandos: o grupo 8 do Moba PISCA
+    # prompts vao junto com os comandos (azul); o grupo 8 do Moba PISCA
     return "(" + palavras(CMDS + (CMDS_EXTRA if completo else ""), K) + "|" + PROMPT + "(" + CMDS + ")?)"
 
 
 def perfil(nome, completo):
-    defs = {1: def1(completo), 2: def2(completo), 3: def3(completo), 4: def4(completo),
-            5: def5(completo), 6: def6(completo), 7: def7(completo), 8: ""}
+    # def1 = MPLS, def5 = protocolos, def6 = enderecos, def7 = comandos/prompts (nomes das funcoes)
+    defs = {1: def5(completo),   # sublinhado: protocolos
+            2: def2(completo),   # vermelho: ruim
+            3: def3(completo),   # verde: bom
+            4: def4(completo),   # amarelo: atencao
+            5: def7(completo),   # azul: prompt + comandos
+            6: def1(completo),   # magenta: MPLS / VPN
+            7: def6(completo),   # ciano: enderecos / interfaces
+            8: ""}               # piscando: nao usar
     if not completo:
         grandes = {i: len(v) for i, v in defs.items() if len(v) > LIMITE_COMPACTO}
         assert not grandes, f"perfil compacto passou de {LIMITE_COMPACTO} caracteres: {grandes}"
@@ -173,7 +184,7 @@ def perfil(nome, completo):
 cabecalho = [
     "; Syntax highlighting de redes para o MobaXterm (Huawei VRP, Cisco IOS/XE/XR/NX-OS, Juniper Junos)",
     "; Gerado por tools/gerar_syntax.py - edite o gerador, nao este arquivo.",
-    "; Grupos: 1 MPLS/VPLS/VPN | 2 ruim | 3 bom | 4 atencao | 5 protocolos | 6 enderecos/interfaces | 7 comandos/prompts",
+    "; Grupos: 1 sublinhado=protocolos | 2 vermelho=ruim | 3 verde=bom | 4 amarelo=atencao | 5 azul=prompt+comandos | 6 magenta=MPLS/VPN | 7 ciano=enderecos/interfaces",
     "; Instale com: .\\Instalar-SyntaxRedes.ps1   (com o MobaXterm FECHADO)",
     "; Dois perfis: o completo e um compacto (regras <= 690 caracteres, como as nativas do Moba).",
     "; Arquivo em Latin-1: o caractere '" + L + "' marca inicio/fim de linha nas regex do Moba.",
