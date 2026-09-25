@@ -472,3 +472,12 @@ function Get-MobaLogChaveEquipamento($Item) {
     $base = [IO.Path]::GetFileNameWithoutExtension($Item.Nome)
     return (($base -split '[_(\[]')[0].TrimEnd('-', ' ')).ToLower()
 }
+
+# ------------------------------------------------------------------ data/hora por linha
+# O MobaXterm pode gravar "[2026-09-25 02:41:49.217] " no inicio de cada linha.
+$script:RxDataHora = New-Object regex -ArgumentList '(?m)^\[\d{2,4}[-/.]\d{1,2}[-/.]\d{2,4}[ T]\d{1,2}:\d{2}:\d{2}(?:[.,]\d+)?\] ?', 'Compiled'
+
+function Remove-MobaLogDataHora([string]$Texto) {
+    # Tira a data/hora do inicio das linhas (para ler melhor e para comparar logs)
+    return $script:RxDataHora.Replace($Texto, '')
+}

@@ -136,6 +136,8 @@ $script:resultados = New-Object Collections.ArrayList
 $script:parar = $false
 $script:rx = $null
 $script:textoAtual = ''
+$script:textoExibido = ''
+$script:mostrarHora = $true
 $script:ocorrencias = @()
 $script:indiceOc = -1
 $script:itemAtual = $null
@@ -209,7 +211,8 @@ $btnSalvar = New-Botao 'Salvar limpo...' 135
 $btnExportar = New-Botao 'Exportar limpos...' 155
 $btnAbrirPasta = New-Botao 'Abrir pasta' 115
 $btnCopiar = New-Botao 'Copiar tudo' 115
-$barra.Controls.AddRange(@($btnAnt, $btnProx, $lblOc, $btnComparar, $btnAnterior, $btnAbrir, $btnSalvar, $btnExportar, $btnAbrirPasta, $btnCopiar))
+$btnHora = New-Botao 'Ocultar data/hora' 170
+$barra.Controls.AddRange(@($btnAnt, $btnProx, $lblOc, $btnHora, $btnComparar, $btnAnterior, $btnAbrir, $btnSalvar, $btnExportar, $btnAbrirPasta, $btnCopiar))
 
 $texto = New-TextoTerminal
 $split.Panel2.Controls.Add($texto)
@@ -294,7 +297,14 @@ function Start-Pesquisa {
 function Show-Log($r) {
     $script:itemAtual = $r
     try { $script:textoAtual = Read-MobaLog $r } catch { $texto.Text = "Nao foi possivel ler: $_"; return }
-    $texto.Text = $script:textoAtual            # o RichTextBox troca \r\n por \n: indices sao do $texto.Text
+    Update-Exibicao
+}
+
+function Update-Exibicao {
+    # Mostra o log com ou sem a data/hora de cada linha e destaca as ocorrencias
+    if (-not $script:itemAtual) { return }
+    $script:textoExibido = if ($script:mostrarHora) { $script:textoAtual } else { Remove-MobaLogDataHora $script:textoAtual }
+    $texto.Text = $script:textoExibido          # o RichTextBox troca \r\n por \n: indices sao do $texto.Text
     $script:ocorrencias = @()
     $script:indiceOc = -1
     if ($script:rx) {
@@ -348,7 +358,9 @@ function Export-Limpos {
             if (-not $equip) { $equip = 'sem-nome' }
             $pasta = Join-Path $dlg.SelectedPath $equip
             New-Item -ItemType Directory -Path $pasta -Force | Out-Null
-            Save-Texto (Join-Path $pasta ('{0:yyyy-MM-dd}_{1}' -f $r.Data, (Get-NomeLimpo $r))) (Read-MobaLog $r)
+            $limpo = Read-MobaLog $r
+            if (-not $script:mostrarHora) { $limpo = Remove-MobaLogDataHora $limpo }
+            Save-Texto (Join-Path $pasta ('{0:yyyy-MM-dd}_{1}' -f $r.Data, (Get-NomeLimpo $r))) $limpo
         }
         $lblStatus.Text = "$n log(s) limpos exportados para $($dlg.SelectedPath)"
         Start-Process explorer.exe -ArgumentList ('"{0}"' -f $dlg.SelectedPath)
@@ -414,7 +426,9 @@ function Get-NomeDiff { 'diff_{0:yyyy-MM-dd}_x_{1:yyyy-MM-dd}.txt' -f $script:cm
 function Show-Comparacao($A, $B) {
     # A = mais antigo, B = mais novo
     if ($A.Data -gt $B.Data -or ($A.Data -eq $B.Data -and $A.Nome -gt $B.Nome)) { $t = $A; $A = $B; $B = $t }
-    try { $textoA = Read-MobaLog $A; $textoB = Read-MobaLog $B } catch { Show-Aviso "Nao foi possivel ler: $_"; return }
+    # sem a data/hora de cada linha: senao todas as linhas seriam diferentes
+    try { $textoA = Remove-MobaLogDataHora (Read-MobaLog $A); $textoB = Remove-MobaLogDataHora (Read-MobaLog $B) }
+    catch { Show-Aviso "Nao foi possivel ler: $_"; return }
     $blocosA = Get-MobaLogBlocos $textoA
     $blocosB = Get-MobaLogBlocos $textoB
 
@@ -515,20 +529,25 @@ $btnAnterior.Add_Click({
     if (-not $ant) { Show-Aviso "Nao ha log anterior desse equipamento na lista.`nPesquise pelo hostname ou IP para listar todos os logs dele."; return }
     Show-Comparacao $ant $script:itemAtual
 })
-$btnAbrir.Add_Click({ if ($script:itemAtual) { Open-NoBloco (Get-NomeLimpo $script:itemAtual) $script:textoAtual } })
+$btnAbrir.Add_Click({ if ($script:itemAtual) { Open-NoBloco (Get-NomeLimpo $script:itemAtual) $script:textoExibido } })
 $btnSalvar.Add_Click({
     if (-not $script:itemAtual) { return }
     $dlg = New-Object Windows.Forms.SaveFileDialog
     $dlg.FileName = Get-NomeLimpo $script:itemAtual
     $dlg.Filter = 'Texto (*.txt)|*.txt|Todos (*.*)|*.*'
-    if ($dlg.ShowDialog() -eq 'OK') { Save-Texto $dlg.FileName $script:textoAtual; $lblStatus.Text = "Salvo: $($dlg.FileName)" }
+    if ($dlg.ShowDialog() -eq 'OK') { Save-Texto $dlg.FileName $script:textoExibido; $lblStatus.Text = "Salvo: $($dlg.FileName)" }
 })
 $btnExportar.Add_Click({ Export-Limpos })
+$btnHora.Add_Click({
+    $script:mostrarHora = -not $script:mostrarHora
+    $btnHora.Text = $(if ($script:mostrarHora) { 'Ocultar data/hora' } else { 'Mostrar data/hora' })
+    Update-Exibicao
+})
 $btnAbrirPasta.Add_Click({
     if (-not $script:itemAtual) { return }
     Start-Process explorer.exe -ArgumentList ('/select,"{0}"' -f $script:itemAtual.Caminho)
 })
-$btnCopiar.Add_Click({ if ($script:textoAtual) { [Windows.Forms.Clipboard]::SetText($script:textoAtual); $lblStatus.Text = 'Log limpo copiado.' } })
+$btnCopiar.Add_Click({ if ($script:textoExibido) { [Windows.Forms.Clipboard]::SetText($script:textoExibido); $lblStatus.Text = 'Log limpo copiado.' } })
 $form.Add_KeyDown({
     param($s, $e)
     if ($e.KeyCode -eq 'F3') { Move-Ocorrencia $(if ($e.Shift) { -1 } else { 1 }); $e.Handled = $true }
