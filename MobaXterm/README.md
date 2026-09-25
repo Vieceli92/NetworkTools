@@ -233,9 +233,10 @@ O Moba tem **8 grupos de regras, cada um com uma cor fixa**: Sublinhado, Vermelh
 | | syslog 0-3, `undo`/`no`, diff `-` | `%%01IFNET/2/...`, `%LINK-3-UPDOWN` |
 | | **prompt em modo config** | `[~NE40]`, `[*NE40]` (sem commit), `R1(config-if)#`, `user@mx#`, `[edit ...]` |
 | **Verde** | estados bons | `up`, `Established`, `Full`, `Master`, `Selected`, `Normal`, `Registered`, `Operational`, `u/u`, `(P)`, `(SU)`; linhas `description`/`sysname`; diff `+` |
-| **Amarelo** | atenção | BGP `Active`/`Connect`/`OpenSent`, OSPF `Init`/`ExStart`/`Loading`, LDP `Initialized`, `Standby`, `Backup`, `Passive`, `mismatch`, `flapping`, uso de 70-89%, luz de -20 a -25 dBm, syslog severidade 4 |
+| **Amarelo** | **endereços IP** | IPv4/IPv6 (com máscara) e as linhas `ip address ...`, `ipv6 address ...`, `ip binding ...`, `ip route-static ...` |
+| | atenção | BGP `Active`/`Connect`/`OpenSent`, OSPF `Init`/`ExStart`/`Loading`, LDP `Initialized`, `Standby`, `Backup`, `Passive`, `mismatch`, `flapping`, uso de 70-89%, luz de -20 a -25 dBm, syslog severidade 4 |
 | **Magenta** | **MPLS / VPLS / L2VPN / L3VPN** | `mpls ldp`, `mpls l2vc`, `vsi`, `pw-template`, `evpn`, `vpn-instance`, `vpn-target 65001:100`, `route-distinguisher ...`, LDP ID `45.6.29.1:0`, `imp-null`, `sr-mpls`, `srv6` |
-| **Ciano** | endereços e interfaces | IPv4/IPv6, MAC, `GE0/3/0`, `XGE`, `100GE1/0/1`, `Eth-Trunk10`, `Vlanif100`, `Global-VE`, `Gi0/0/1`, `ge-0/0/0.0`, `AS65001` |
+| **Ciano** | interfaces e MAC | MAC, `GE0/3/0`, `XGE`, `100GE1/0/1`, `Eth-Trunk10`, `Vlanif100`, `Global-VE`, `Gi0/0/1`, `ge-0/0/0.0`, `AS65001` |
 | Sublinhado | protocolos e blocos | `interface`, `bgp`, `ospf`, `isis`, `static`, `ibgp`/`ebgp`, `route-policy`, `acl`, `qos`, `pppoe`, `bas`, `radius`, `ip pool`, `vrrp`, `bfd` |
 | Piscando | (vazio) | |
 
