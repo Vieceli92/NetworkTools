@@ -272,7 +272,7 @@ O MobaXterm só tem o **SSH keepalive** (*Settings > SSH > SSH keepalive*, que j
 1. Dois cliques em **`Instalar AntiIdle.cmd`** (ou `Criar Atalhos.cmd`, que também faz isso). Ele baixa o [AutoHotkey v2](https://www.autohotkey.com) portátil e coloca o `AutoHotkey64.exe` na pasta `AntiIdle`, que vai pelo OneDrive para os dois PCs. Instalar o AutoHotkey normalmente também funciona.
 2. Em `config.psd1`: `AntiIdle = $true` e `AntiIdleSegundos = 240` (use menos que o timeout do equipamento).
 3. Abra o Moba pelo atalho **"MobaXterm (logs)"**: o anti-idle sobe junto.
-4. Na primeira vez, clique com o botão direito no ícone > **Listar janelas do Moba** e confira se a janela do Moba está marcada com `[X]`. Se não estiver, ajuste `ClassesAlvo` no começo do `.ahk`.
+4. Na primeira vez, clique com o botão direito no ícone > **Listar janelas do Moba** e confira se a janela do Moba está marcada com `[X]`. A janela principal é da classe `TMobaXtermForm` (confirmado). A `TApplication` 0x0 é interna e fica de fora. Se uma aba destacada (Detach) aparecer sem `[X]`, acrescente a classe dela em `ClassesAlvo` no começo do `.ahk`.
 
 **Limitação importante:** o Windows só deixa mandar teclas para a **aba ativa** de cada janela do Moba. Para manter várias sessões vivas, **destaque as abas importantes** (botão *Detach* ou arrastar a aba para fora): cada janela destacada recebe o anti-idle.
 
@@ -283,7 +283,67 @@ O MobaXterm só tem o **SSH keepalive** (*Settings > SSH > SSH keepalive*, que j
 
 ---
 
-## 5. Melhorias que valem a pena no MobaXterm
+## 5. Ferramentas gráficas de Linux (X server + WSL)
+
+O MobaXterm já tem um **servidor X embutido** (botão *X server*). O `Ajustar-MobaIni.ps1` faz ele iniciar junto com o Moba (`XAuto=1`). Falta só **um Linux para rodar as ferramentas**: o mais simples é a **WSL**, que já aparece como sessão *WSL-Ubuntu* no Moba.
+
+### 5.1 Conferir / instalar a WSL
+```powershell
+wsl -l -v                      # deve mostrar Ubuntu com VERSION 2
+wsl --install -d Ubuntu        # se nao tiver (reinicie o PC depois)
+```
+
+### 5.2 Instalar as ferramentas (na sessão WSL-Ubuntu do Moba)
+```bash
+sudo apt update
+sudo apt install -y x11-apps wireshark mtr remmina filezilla
+sudo usermod -aG wireshark $USER    # capturar sem sudo (feche e abra a sessao depois)
+```
+
+| Ferramenta | Para que serve |
+|---|---|
+| `wireshark` | análise de pacotes: abrir `.pcap` ou capturar ao vivo de um equipamento remoto (5.4) |
+| `mtr` | traceroute contínuo com perda/latência por salto (abre em janela quando há X) |
+| `remmina` | cliente RDP/VNC |
+| `filezilla` | SFTP/FTP gráfico (backups de config, imagens de firmware) |
+| `x11-apps` | teste (`xeyes`) |
+
+Outras úteis: `ettercap-graphical`, `gns3-gui` (PPA do GNS3), Cisco **Packet Tracer** (`.deb` para Linux no site da NetAcad).
+
+### 5.3 Testar
+```bash
+echo $DISPLAY
+xeyes &
+```
+- **Windows 11:** a WSL tem gráfico próprio (WSLg); as janelas abrem mesmo sem o X do Moba.
+- **Windows 10**, ou se `xeyes` não abrir:
+  1. No Moba, vá em *Settings > X11 > X11 remote access* e deixe em **"full"** ou **"on-demand"**. No "on-demand", ele pergunta na primeira conexão; permita.
+  2. Na WSL, aponte para o X do Moba (o IP do Windows visto pela WSL):
+     ```bash
+     echo 'export DISPLAY=$(ip route show default | awk "{print \$3}"):0.0' >> ~/.bashrc
+     source ~/.bashrc
+     xeyes &
+     ```
+- No Firewall do Windows, libere o X do Moba só em **rede privada**.
+
+### 5.4 Wireshark ao vivo de um equipamento Linux (SONiC, servidor, jump host)
+Com `-w -`, o tcpdump manda a captura pelo SSH direto para o Wireshark. Troque a porta SSH e a interface pelas suas:
+```bash
+ssh routerx@IP-DO-EQUIPAMENTO -p 2288 "sudo tcpdump -U -i Ethernet0 -w - not port 2288" | wireshark -k -i -
+```
+O `not port 2288` tira o próprio SSH da captura.
+
+### 5.5 Outras formas
+- **Linux remoto com interface gráfica:** numa sessão SSH do Moba o *X11-forwarding* vem ligado (*Edit session > Advanced SSH settings*). O servidor precisa de `X11Forwarding yes` no `sshd_config` e do pacote `xauth`. Aí basta rodar o programa lá (ex.: `wireshark &`) e a janela abre no Windows.
+- **Área de trabalho inteira de um Linux:** sessão **XDMCP** ou **VNC** no Moba.
+- **Janela preta ou travando:** ligue *Settings > X11 > OpenGL acceleration*.
+- **Diagnóstico:** `echo $DISPLAY` vazio numa sessão SSH quer dizer que falta `xauth` no servidor ou o X11-forwarding está desligado na sessão.
+
+> Próximo passo possível: um script que prepara a WSL de uma vez (instala as ferramentas, ajusta o `DISPLAY` e testa).
+
+---
+
+## 6. Melhorias que valem a pena no MobaXterm
 
 **Produtividade**
 - **MultiExec** (botão na barra): digita o mesmo comando em vários equipamentos ao mesmo tempo (ex.: `display bgp peer` em todos os NE).
@@ -311,7 +371,7 @@ O MobaXterm só tem o **SSH keepalive** (*Settings > SSH > SSH keepalive*, que j
 - Mesma versão do Moba nos dois PCs (o formato do ini muda entre versões).
 - *Settings > General > Export configuration* de vez em quando, como backup extra.
 
-## 6. Problemas comuns
+## 7. Problemas comuns
 
 | Sintoma | Causa | Solução |
 |---|---|---|
