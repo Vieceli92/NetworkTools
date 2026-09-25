@@ -6,3 +6,6 @@ MobaXterm.ini
 
 # pacote gerado para download (nao versionar)
 *.zip
+
+# AutoHotkey baixado pelo Instalar-AutoHotkey.ps1
+MobaXterm/AntiIdle/AutoHotkey*.exe

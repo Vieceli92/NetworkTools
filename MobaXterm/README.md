@@ -16,7 +16,8 @@ Scripts PowerShell (Windows PowerShell 5.1 ou PowerShell 7) para:
 | `config.psd1` | **Única coisa que você edita**: caminho do Moba, pasta de logs, retenção etc. |
 | `Organizar-LogsMoba.ps1` | Move os logs para `2026\09-Setembro\24\...` |
 | `Pesquisar-Logs.ps1` + `MobaLogBusca.ps1` | **Janela de busca e comparação (diff) dos logs**, com prévia do log limpo |
-| `Pesquisar Logs.cmd` / `Criar Atalhos.cmd` | **Dois cliques**: abre a janela de busca / cria os ícones na Área de Trabalho |
+| `Pesquisar Logs.cmd` / `Criar Atalhos.cmd` | **Dois cliques**: abre a janela de busca / cria os ícones na Área de Trabalho e baixa o AutoHotkey |
+| `Instalar-AutoHotkey.ps1` / `Instalar AntiIdle.cmd` | Baixa o AutoHotkey v2 portátil (`AutoHotkey64.exe`) para a pasta `AntiIdle` |
 | `Iniciar-MobaXterm.ps1` | Organiza os logs → abre o Moba → organiza de novo quando o Moba fecha |
 | `Instalar-MobaTools.ps1` | Cria o atalho **"MobaXterm (logs)"** e (opcional) uma tarefa agendada |
 | `Configurar-SyncOneDrive.ps1` | Coloca o `MobaXterm.ini` (sessões) no OneDrive |
@@ -249,7 +250,7 @@ O MobaXterm só tem o **SSH keepalive** (*Settings > SSH > SSH keepalive*, que j
 - Fecha sozinho quando o Moba fecha.
 
 **Instalação**
-1. Instale o [AutoHotkey v2](https://www.autohotkey.com), ou use o zip portable e coloque o `AutoHotkey64.exe` dentro da pasta `AntiIdle` (assim ele também vai pelo OneDrive).
+1. Dois cliques em **`Instalar AntiIdle.cmd`** (ou `Criar Atalhos.cmd`, que também faz isso). Ele baixa o [AutoHotkey v2](https://www.autohotkey.com) portátil e coloca o `AutoHotkey64.exe` na pasta `AntiIdle`, que vai pelo OneDrive para os dois PCs. Instalar o AutoHotkey normalmente também funciona.
 2. Em `config.psd1`: `AntiIdle = $true` e `AntiIdleSegundos = 240` (use menos que o timeout do equipamento).
 3. Abra o Moba pelo atalho **"MobaXterm (logs)"**: o anti-idle sobe junto.
 4. Na primeira vez, clique com o botão direito no ícone > **Listar janelas do Moba** e confira se a janela do Moba está marcada com `[X]`. Se não estiver, ajuste `ClassesAlvo` no começo do `.ahk`.
@@ -303,6 +304,8 @@ O MobaXterm só tem o **SSH keepalive** (*Settings > SSH > SSH keepalive*, que j
 | Texto piscando | Grupo 8 do Moba pisca | Já corrigido: o grupo 8 fica vazio. Rode `Instalar-SyntaxRedes.ps1` de novo |
 | Moba abre sem as sessões/cores do OneDrive | O `.exe` é da versão **instalada**: ela ignora o ini ao lado dele e usa `%APPDATA%\MobaXterm\MobaXterm.ini` | Rode `Migrar-ParaPortable.ps1` de novo (ele grava `MobaIni` no `config.psd1`) e abra sempre pelo atalho **"MobaXterm (logs)"**, que passa `-i <ini do OneDrive>` |
 | `MobaXterm-NOMEPC.ini` no OneDrive | Moba aberto nos dois PCs ao mesmo tempo | Compare, mantenha o certo como `MobaXterm.ini` e apague o outro |
+| `AntiIdle ligado, mas o AutoHotkey v2 nao foi encontrado` | Falta o `AutoHotkey64.exe` | Dois cliques em `Instalar AntiIdle.cmd`, ou `AntiIdle = $false` no `config.psd1` para desligar |
+| Ícone "MobaXterm (logs)" sumiu da Área de Trabalho | — | Dois cliques em `Criar Atalhos.cmd` |
 | Anti-idle não envia | Janela do Moba não reconhecida | Ícone da bandeja > "Listar janelas do Moba" e ajuste `ClassesAlvo` no `.ahk` |
 
 ### Fontes
