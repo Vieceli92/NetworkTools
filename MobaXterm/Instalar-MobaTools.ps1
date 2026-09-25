@@ -47,14 +47,34 @@ $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $launcher = Join-Path $PSScriptRoot 'Iniciar-MobaXterm.ps1'
 $organizador = Join-Path $PSScriptRoot 'Organizar-LogsMoba.ps1'
 
+function Get-ArgumentosScript([string]$Script, [switch]$STA) {
+    # A Area de Trabalho costuma ser sincronizada pelo OneDrive: um atalho com caminho fixo
+    # (C:\Users\<usuario>\OneDrive\...) quebra no outro PC, onde o usuario e diferente.
+    # Por isso, se o script estiver no OneDrive, o caminho e montado na hora com $env:OneDrive.
+    $base = '-NoProfile -ExecutionPolicy Bypass' + $(if ($STA) { ' -STA' } else { '' }) + ' -WindowStyle Hidden'
+    if ($env:OneDrive -and $Script.StartsWith($env:OneDrive.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        $rel = $Script.Substring($env:OneDrive.TrimEnd('\').Length + 1).Replace("'", "''")
+        return "$base -Command `"& (Join-Path `$env:OneDrive '$rel')`""
+    }
+    return "$base -File `"$Script`""
+}
+
+function Get-CaminhoPortatil([string]$Caminho) {
+    # %OneDrive%\... no lugar de C:\Users\<usuario>\OneDrive\... (vale nos dois PCs)
+    if ($env:OneDrive -and $Caminho.StartsWith($env:OneDrive.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        return '%OneDrive%' + $Caminho.Substring($env:OneDrive.TrimEnd('\').Length)
+    }
+    return $Caminho
+}
+
 $shell = New-Object -ComObject WScript.Shell
 foreach ($caminho in $atalhos) {
     $lnk = $shell.CreateShortcut($caminho)
     $lnk.TargetPath = $ps
-    $lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$launcher`""
-    $lnk.WorkingDirectory = $PSScriptRoot
+    $lnk.Arguments = Get-ArgumentosScript $launcher
+    $lnk.WorkingDirectory = ''
     $lnk.WindowStyle = 7   # minimizado (evita piscar a janela do PowerShell)
-    if (Test-Path -LiteralPath $cfg.MobaExe) { $lnk.IconLocation = "$($cfg.MobaExe),0" }
+    if (Test-Path -LiteralPath $cfg.MobaExe) { $lnk.IconLocation = "$(Get-CaminhoPortatil $cfg.MobaExe),0" }
     $lnk.Description = 'Abre o MobaXterm e organiza os logs por data'
     $lnk.Save()
     Write-Output "Atalho criado: $caminho"
@@ -64,10 +84,10 @@ $busca = Join-Path $PSScriptRoot 'Pesquisar-Logs.ps1'
 foreach ($caminho in $atalhosBusca) {
     $lnk = $shell.CreateShortcut($caminho)
     $lnk.TargetPath = $ps
-    $lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File `"$busca`""
-    $lnk.WorkingDirectory = $PSScriptRoot
+    $lnk.Arguments = Get-ArgumentosScript $busca -STA
+    $lnk.WorkingDirectory = ''
     $lnk.WindowStyle = 7
-    $lnk.IconLocation = "$env:SystemRoot\System32\shell32.dll,22"   # lupa
+    $lnk.IconLocation = '%SystemRoot%\System32\shell32.dll,22'   # lupa
     $lnk.Description = 'Pesquisa nos logs do MobaXterm por hostname, IP ou texto'
     $lnk.Save()
     Write-Output "Atalho criado: $caminho"

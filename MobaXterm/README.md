@@ -17,6 +17,7 @@ Scripts PowerShell (Windows PowerShell 5.1 ou PowerShell 7) para:
 | `Organizar-LogsMoba.ps1` | Move os logs para `2026\09-Setembro\24\...` |
 | `Pesquisar-Logs.ps1` + `MobaLogBusca.ps1` | **Janela de busca e comparação (diff) dos logs**, com prévia do log limpo |
 | `Pesquisar Logs.cmd` / `Criar Atalhos.cmd` | **Dois cliques**: abre a janela de busca / cria os ícones na Área de Trabalho e baixa o AutoHotkey |
+| `Diagnosticar-MobaTools.ps1` / **`Diagnostico.cmd`** | **Confere tudo** (Moba, ini, logs, cores, AutoHotkey, atalhos) e mostra o que está errado; não altera nada |
 | `Atualizar-MobaTools.ps1` / **`Atualizar.cmd`** | **Atualiza esta pasta** com a versão mais nova do GitHub (mantém o seu `config.psd1`) |
 | `Instalar-AutoHotkey.ps1` / `Instalar AntiIdle.cmd` | Baixa o AutoHotkey v2 portátil (`AutoHotkey64.exe`) para a pasta `AntiIdle` |
 | `Iniciar-MobaXterm.ps1` | Organiza os logs → abre o Moba → organiza de novo quando o Moba fecha |
@@ -325,6 +326,7 @@ O MobaXterm só tem o **SSH keepalive** (*Settings > SSH > SSH keepalive*, que j
 | `MobaXterm-NOMEPC.ini` no OneDrive | Moba aberto nos dois PCs ao mesmo tempo | Compare, mantenha o certo como `MobaXterm.ini` e apague o outro |
 | `AntiIdle ligado, mas o AutoHotkey v2 nao foi encontrado` | Falta o `AutoHotkey64.exe` | Dois cliques em `Instalar AntiIdle.cmd`, ou `AntiIdle = $false` no `config.psd1` para desligar |
 | Ícone "MobaXterm (logs)" sumiu da Área de Trabalho | — | Dois cliques em `Criar Atalhos.cmd` |
+| Atalho não abre nada / funciona num PC e no outro não | A Área de Trabalho sincroniza pelo OneDrive, e um atalho antigo guardava `C:\Users\<usuario do outro PC>\...` | Dois cliques em `Criar Atalhos.cmd` (os atalhos novos acham o OneDrive na hora, em cada PC). Se ainda falhar, o atalho mostra uma janela com o erro; detalhes em `%TEMP%\MobaTools\iniciar.log` e no `Diagnostico.cmd` |
 | Anti-idle não envia | Janela do Moba não reconhecida | Ícone da bandeja > "Listar janelas do Moba" e ajuste `ClassesAlvo` no `.ahk` |
 
 ### Fontes
